@@ -1,0 +1,24 @@
+[tool.flake8]
+ignore = ["D100","D103"]
+exclude = [".eggs", ".git", ".tox", ".venv", ".build", "dist", "charmhelpers", "mod", "build"]
+max-line-length = 88
+max-complexity = 10
+
+[tool.black]
+exclude = '''
+(
+    \.eggs
+  | \.git
+  | \.tox
+  | \.venv
+  | \.build
+  | dist
+  | charmhelpers
+  | mod
+  | build
+)/
+'''
+
+[tool.isort]
+profile = "black"
+skip_glob = [".eggs", ".git", ".tox", ".venv", ".build", "dist", "charmhelpers", "mod", "build"]

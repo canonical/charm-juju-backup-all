@@ -1,0 +1,7 @@
+# Copyright 2021 Canonical Ltd.
+# See LICENSE file for licensing details.
+
+do-backup:
+  description: Performs a backup against all configured controllers/models
+push-ssh-keys:
+  description: Push the charm ssh keys to all models in configured controllers

@@ -1,0 +1,16 @@
+# Learn more about charmcraft.yaml configuration at:
+# https://juju.is/docs/sdk/charmcraft-config
+type: "charm"
+parts:
+  charm:
+    build-packages: [git]
+    prime: ["scripts"]
+bases:
+  - build-on:
+    - name: "ubuntu"
+      channel: "20.04"
+    run-on:
+    - name: "ubuntu"
+      channel: "20.04"
+    - name: "ubuntu"
+      channel: "18.04"

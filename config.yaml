@@ -1,0 +1,79 @@
+# Copyright 2021 Canonical Ltd.
+# See LICENSE file for licensing details.
+#
+
+options:
+  # Juju connection options.
+  controllers:
+    type: string
+    default: ""
+    description: |
+      YAML defining the configuration for controllers, same syntax as used
+      by the juju client configuration (~/.local/share/juju/controllers.yaml)
+  accounts:
+    type: string
+    default: ""
+    description: |
+      YAML defining the configuration for juju accounts, same syntax as used
+      by the juju client configuration (~/.local/share/juju/accounts.yaml)
+
+  # backup options
+  backup-dir:
+    type: string
+    default: "/opt/backups"
+    description: |
+      The directory to be used for the backups. Will be created if it does not exist.
+  backup-retention-period:
+    type: int
+    default: 30
+    description: |
+      Retention period for backups in days.
+      Backup files older than this will be purged during the next backup run.
+  controller-names:
+    type: string
+    default: ""
+    description: |
+      A comma delimited list of controller names to be backed up. An empty list
+      means that all configured controllers will backed up.
+  crontab:
+    type: string
+    default: "30 4 * * *"
+    description: |
+      Specifies when to run the backups. Uses standard crontab syntax.
+  exclude-charms:
+    type: string
+    default: ""
+    description: |
+      A comma delimited list of charms to be excluded. An empty list means that
+      all charms supported by juju-backup-all will be backed up.
+      .
+      Note that this setting uses the name of the *charm* and not the name of
+      the application.
+  exclude-controller-backup:
+    type: boolean
+    default: false
+    description: |
+      Whether to backup the controller as part of the backup operations
+  exclude-juju-client-config-backup:
+    type: boolean
+    default: false
+    description: |
+      Whether to backup the juju client data (accounts, controllers, ssh keys)
+      as part of the backup operations.
+  timeout:
+    type: int
+    default: 60
+    description: |
+      Timeout in seconds for long running commands. This setting is used for
+      each task and not for the whole backup operation.
+
+  # misc options
+  nagios_context:
+    default: "juju"
+    type: string
+    description: |
+      A string that will be prepended to instance name to set the host name
+      in nagios. So for instance the hostname would be something like:
+          juju-myservice-0
+      If you're running multiple environments with the same services in them
+      this allows you to differentiate between them.

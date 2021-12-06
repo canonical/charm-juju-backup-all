@@ -1,0 +1,15 @@
+charm_name: juju-backup-all
+tests:
+ - tests.test_backups.JujuBackupAllTests
+gate_bundles:
+  - bionic
+  - focal
+dev_bundles:
+  - bionic
+  - focal
+smoke_bundles:
+  - bionic
+target_deploy_status:
+  juju-backup-all:
+    workload-status: "blocked"
+    workload-status-message-prefix: "Waiting for controllers/accounts configuration"
