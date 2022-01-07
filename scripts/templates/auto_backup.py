@@ -79,6 +79,8 @@ class AutoJujuBackupAll:
             self.config.output_dir,
             "-mtime",
             "+{}".format(days_old),
+            "-type",
+            "f",
             "-delete",
         ]
 
