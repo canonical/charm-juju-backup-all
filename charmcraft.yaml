@@ -3,7 +3,7 @@
 type: "charm"
 parts:
   charm:
-    build-packages: [git]
+    build-packages: [git, libffi-dev, rustc, gcc, build-essential, cargo, libssl-dev]
     prime: ["scripts"]
 bases:
   - build-on:
