@@ -1,1 +1,2 @@
 git+https://github.com/openstack-charmers/zaza.git#egg=zaza
+python-openstackclient
