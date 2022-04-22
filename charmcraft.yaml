@@ -3,7 +3,8 @@
 type: "charm"
 parts:
   charm:
-    build-packages: [git]
+    build-packages: [git, libffi-dev, rustc, gcc, build-essential, cargo, libssl-dev]
+    charm-python-packages: [setuptools < 58]
     prime: ["scripts"]
 bases:
   - build-on:

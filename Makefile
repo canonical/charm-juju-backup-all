@@ -4,6 +4,10 @@ PROJECTPATH=$(dir $(realpath $(MAKEFILE_LIST)))
 ifndef CHARM_BUILD_DIR
 	CHARM_BUILD_DIR=${PROJECTPATH}.build
 endif
+ifdef CONTAINER
+  BUILD_ARGS="--destructive-mode"
+endif
+
 METADATA_FILE="metadata.yaml"
 CHARM_NAME=$(shell cat ${PROJECTPATH}/${METADATA_FILE} | grep -E '^name:' | awk '{print $$2}')
 
@@ -30,6 +34,8 @@ clean:
 	@git clean -ffXd -e '!.idea' -e '!.venv'
 	@echo "Cleaning existing build"
 	@rm -rf ${CHARM_BUILD_DIR}/${CHARM_NAME}
+	@charmcraft clean
+	@rm -rf ${PROJECTPATH}/${CHARM_NAME}.charm
 
 dev-environment:
 	@echo "Creating virtualenv and installing pre-commit"
@@ -45,11 +51,13 @@ submodules-update:
 	@echo "Pulling latest updates for submodules"
 	@git submodule update --init --recursive --remote --merge
 
-build: clean
+build: clean submodules-update
 	@echo "Building charm to base directory ${CHARM_BUILD_DIR}/${CHARM_NAME}"
 	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@charmcraft build
-	@mv *.charm ${CHARM_BUILD_DIR}/${CHARM_NAME}
+	@charmcraft -v pack
+	@bash -c ./rename.sh
+	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
+	@unzip ${PROJECTPATH}/${CHARM_NAME}.charm -d ${CHARM_BUILD_DIR}/${CHARM_NAME}
 
 lint:
 	@echo "Running lint checks"
@@ -69,7 +77,7 @@ unittests:
 
 functional: build
 	@echo "Executing functional tests using built charm at ${CHARM_BUILD_DIR}"
-	@CHARM_BUILD_DIR=${CHARM_BUILD_DIR} tox -e func
+	@CHARM_BUILD_DIR=${CHARM_BUILD_DIR} CHARM_LOCATION=${PROJECTPATH} tox -e func
 
 test: lint proof unittests functional
 	@echo "Tests completed for charm ${CHARM_NAME}."
