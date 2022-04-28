@@ -29,6 +29,12 @@ import sys
 import traceback
 
 import yaml
+from jujubackupall import globals  # noqa E402
+from jujubackupall.config import Config  # noqa E402
+from jujubackupall.process import BackupProcessor  # noqa E402
+
+from config import Paths  # noqa E402
+from utils import SSHKeyHelper  # noqa E402
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +43,6 @@ logger = logging.getLogger(__name__)
 sys.path.append("REPLACE_CHARMDIR/src")
 sys.path.append("REPLACE_CHARMDIR/venv")
 
-from jujubackupall.config import Config  # noqa E402
-from jujubackupall.process import BackupProcessor  # noqa E402
-
-from config import Paths  # noqa E402
-from utils import SSHKeyHelper  # noqa E402
 
 PID_FILENAME = pathlib.Path("/tmp/auto_backup.pid")
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
@@ -113,10 +114,23 @@ class AutoJujuBackupAll:
             help="Purge backups older than the specified number of days",
         )
 
+        parser.add_argument(
+            "--task-timeout",
+            action="store",
+            dest="task_timeout",
+            metavar="SECONDS",
+            default=600,
+            type=int,
+            help="Individual task timeout length",
+        )
+
         args = parser.parse_args()
 
         log_level = logging.DEBUG if args.debug else logging.ERROR
         self.configure_logging(log_level=log_level)
+
+        if args.task_timeout > 0:
+            globals.async_timeout = args.task_timeout
 
         # Ensure a single instance via a simple pidfile
         pid = str(os.getpid())
