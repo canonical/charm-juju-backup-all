@@ -160,12 +160,13 @@ class JujuBackupAllHelper:
     def update_crontab(self):
         """Update crontab "/etc/cron.d/juju-backup-all" that runs "auto_backup.py"."""
         path = "PATH=/usr/bin:/bin:/snap/bin"
-        cron_job = "{}\n{} {} {} --debug --purge {} >> {} 2>&1\n".format(
+        cron_job = "{}\n{} {} {} --debug --purge {} --task-timeout {} >> {} 2>&1\n".format(  # noqa E501
             path,
             self.charm_config["crontab"],
             BACKUP_USERNAME,
             Paths.AUTO_BACKUP_SCRIPT_PATH,
             self.charm_config["backup-retention-period"],
+            self.charm_config["timeout"],
             Paths.AUTO_BACKUP_LOG_PATH,
         )
         Paths.AUTO_BACKUP_CRONTAB_PATH.write_text(cron_job)
