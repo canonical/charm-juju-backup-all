@@ -28,6 +28,11 @@ import subprocess
 import sys
 import traceback
 
+# The path below is templated in during charm install this is required to load
+# the charm code and dependencies from this script.
+sys.path.append("REPLACE_CHARMDIR/src")
+sys.path.append("REPLACE_CHARMDIR/venv")
+
 import yaml
 from jujubackupall import globals  # noqa E402
 from jujubackupall.config import Config  # noqa E402
@@ -37,11 +42,6 @@ from config import Paths  # noqa E402
 from utils import SSHKeyHelper  # noqa E402
 
 logger = logging.getLogger(__name__)
-
-# The path below is templated in during charm install this is required to load
-# the charm code and dependencies from this script.
-sys.path.append("REPLACE_CHARMDIR/src")
-sys.path.append("REPLACE_CHARMDIR/venv")
 
 
 PID_FILENAME = pathlib.Path("/tmp/auto_backup.pid")
