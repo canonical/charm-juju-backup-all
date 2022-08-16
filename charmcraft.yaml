@@ -1,5 +1,7 @@
 # Learn more about charmcraft.yaml configuration at:
 # https://juju.is/docs/sdk/charmcraft-config
+# Note(sudeephb): There are two bases in this file. This is because the charm built
+# in focal doesn't work in jammy and vice versa.
 type: "charm"
 parts:
   charm:
@@ -15,3 +17,9 @@ bases:
       channel: "20.04"
     - name: "ubuntu"
       channel: "18.04"
+  - build-on:
+      - name: ubuntu
+        channel: "22.04"
+    run-on:
+      - name: ubuntu
+        channel: "22.04"
