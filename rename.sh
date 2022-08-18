@@ -1,6 +1,6 @@
 #!/bin/bash
 charm=$(grep -E "^name:" metadata.yaml | awk '{print $2}')
-echo "renaming ${charm}_*.charm to ${charm}.charm"
+echo "renaming ${charm}_*.charm to ${charm}_series.charm"
 echo -n "pwd: "
 pwd
 ls -al
@@ -9,5 +9,8 @@ if [[ -e "${charm}.charm" ]];
 then
     rm "${charm}.charm"
 fi
-echo "Renaming charm here."
-mv ${charm}_*.charm ${charm}.charm
+# Note(sudeephb): As two different charm files are built, 
+# the one that runs on focal & bionic is named {charm}_focal_bionic.charm
+echo "Renaming charms here."
+mv ${charm}_ubuntu-20.04-amd64_ubuntu-18.04-amd64.charm ${charm}_focal_bionic.charm
+mv ${charm}_ubuntu-22.04-amd64.charm ${charm}.charm

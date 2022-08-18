@@ -14,9 +14,7 @@ description: |
 tags:
   - backups
   - ops
-series:
-  - bionic
-  - focal
+series: []
 subordinate: false
 provides:
   nrpe-external-master:
