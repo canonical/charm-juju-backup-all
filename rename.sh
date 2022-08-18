@@ -10,7 +10,7 @@ then
     rm "${charm}.charm"
 fi
 # Note(sudeephb): As two different charm files are built, 
-# these are named according to the series they run on.
+# the one that runs on focal & bionic is named {charm}_focal_bionic.charm
 echo "Renaming charms here."
 mv ${charm}_ubuntu-20.04-amd64_ubuntu-18.04-amd64.charm ${charm}_focal_bionic.charm
-mv ${charm}_ubuntu-22.04-amd64.charm ${charm}_jammy.charm
+mv ${charm}_ubuntu-22.04-amd64.charm ${charm}.charm

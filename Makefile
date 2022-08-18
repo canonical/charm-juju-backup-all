@@ -57,7 +57,7 @@ build: clean submodules-update
 	@charmcraft -v pack
 	@bash -c ./rename.sh
 	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@unzip ${PROJECTPATH}/${CHARM_NAME}_jammy.charm -d ${CHARM_BUILD_DIR}/${CHARM_NAME}
+	@unzip ${PROJECTPATH}/${CHARM_NAME}.charm -d ${CHARM_BUILD_DIR}/${CHARM_NAME}
 
 lint:
 	@echo "Running lint checks"
