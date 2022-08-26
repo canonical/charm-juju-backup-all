@@ -16,10 +16,40 @@ from tests.fixtures import (
     MockController,
     MockModel,
 )
-from utils import SSHKeyHelper
+from utils import SSHKeyHelper, JujuBackupAllHelper
 
 
-class TestUtils(unittest.TestCase):
+logging.basicConfig(level=logging.DEBUG)
+
+class TestJujuBackupAllHelper(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up class fixture."""
+        # patch relevant modules/methods
+        nrpe_support_patcher = mock.patch("utils.NRPE")
+        nrpe_support_patcher.start()
+        cls.addClassCleanup(nrpe_support_patcher.stop)
+
+        charm_dir_patcher = mock.patch("charmhelpers.core.hookenv.charm_dir")
+        patch = charm_dir_patcher.start()
+        cls.addClassCleanup(charm_dir_patcher.stop)
+        patch.return_value = '/a/directory/'
+
+    @mock.patch("utils.BackupProcessor")
+    @mock.patch("utils.host")
+    def test_perform_backup(self, backup_processor, host):
+        model = mock.Mock()
+        model.config = MOCK_CONFIG
+        backup_helper = JujuBackupAllHelper(model)
+        backup_helper.push_ssh_keys = mock.Mock()
+
+        backup_helper.perform_backup()
+
+        backup_helper.push_ssh_keys.assert_called_once()
+
+
+class TestSSHKeyHelper(unittest.TestCase):
     """Utils test class."""
 
     @classmethod
@@ -28,6 +58,7 @@ class TestUtils(unittest.TestCase):
         # patch relevant modules/methods
         cls.nrpe_support_patcher = mock.patch("utils.NRPE")
         cls.nrpe_support_patcher.start()
+        cls.addClassCleanup(cls.nrpe_support_patcher.stop)
 
         cls.charm_dir_patcher = mock.patch("charmhelpers.core.hookenv.charm_dir")
         patch = cls.charm_dir_patcher.start()
