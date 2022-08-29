@@ -39,7 +39,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
     @mock.patch("utils.BackupProcessor")
     @mock.patch("utils.host")
     def test_perform_backup(self, backup_processor, host):
-        model = mock.Mock()
+        model = mock.MagicMock()
         model.config = MOCK_CONFIG
         backup_helper = JujuBackupAllHelper(model)
         backup_helper.push_ssh_keys = mock.Mock()
@@ -66,7 +66,7 @@ class TestSSHKeyHelper(unittest.TestCase):
 
     def setUp(self):
         """Set up tests."""
-        self.model = mock.Mock()
+        self.model = mock.MagicMock()
         self.helper = SSHKeyHelper(
             Config(args=MOCK_CONFIG),
             yaml.safe_load(ACCOUNTS_YAML)["controllers"],
