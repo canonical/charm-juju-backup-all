@@ -19,8 +19,6 @@ from tests.fixtures import (
 from utils import JujuBackupAllHelper, SSHKeyHelper
 
 
-logging.basicConfig(level=logging.DEBUG)
-
 class TestJujuBackupAllHelper(unittest.TestCase):
     """Test JujuBackupAllHelper's methods."""
 
