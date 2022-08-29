@@ -16,12 +16,13 @@ from tests.fixtures import (
     MockController,
     MockModel,
 )
-from utils import SSHKeyHelper, JujuBackupAllHelper
+from utils import JujuBackupAllHelper, SSHKeyHelper
 
 
 logging.basicConfig(level=logging.DEBUG)
 
 class TestJujuBackupAllHelper(unittest.TestCase):
+    """Test JujuBackupAllHelper's methods."""
 
     @classmethod
     def setUpClass(cls):
@@ -74,7 +75,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
 
 
 class TestSSHKeyHelper(unittest.TestCase):
-    """Utils test class."""
+    """Test SSHKeyHelper's methods."""
 
     @classmethod
     def setUpClass(cls):

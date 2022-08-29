@@ -265,25 +265,26 @@ class SSHKeyHelper:
                     model_names = run_async(controller.list_models())
                     for model_name in model_names:
                         try:
-                            logging.debug("connecting to model: '{}'".format(model_name))
+                            logging.debug(
+                                "connecting to model: '{}'".format(model_name)
+                            )
                             with connect_model(controller, model_name) as model:
                                 logging.debug("processing model: {}".format(model_name))
                                 # check if the fingerprint is present, if not add it
                                 username = self.accounts[controller_name]["user"]
-                                if fingerprint not in self._get_model_ssh_key_fingeprints(
-                                    model
+                                if (
+                                    fingerprint
+                                    not in self._get_model_ssh_key_fingeprints(model)
                                 ):
                                     logging.debug(
-                                        "ssh key missing for user '{}', adding it".format(
-                                            username
-                                        )
+                                        "ssh key missing for user '{}',"
+                                        "adding it".format(username)
                                     )
                                     run_async(model.add_ssh_keys(username, pubkey))
                                 else:
                                     logging.debug(
-                                        "key for user '{}' already present, skipping".format(
-                                            username
-                                        )
+                                        "key for user '{}' already present,"
+                                        "skipping".format(username)
                                     )
                         except Exception:
                             logging.error(traceback.format_exc())
