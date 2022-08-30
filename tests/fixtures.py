@@ -35,6 +35,8 @@ MOCK_CONFIG = {
     "exclude-charms": "",
     "backup-dir": "/opt/backups",
     "timeout": 60,
+    "crontab": "10 20 * *",
+    "backup-retention-period": 7,
 }
 
 SSH_FINGERPRINT = "a3:fe:56:ca:d8:e8:ea:04:f2:9a:fd:0f:bf:55:7c:17 (jujubackup@juju-deb4b2-tmp-7)"  # noqa E501

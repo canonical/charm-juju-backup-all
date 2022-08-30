@@ -16,11 +16,64 @@ from tests.fixtures import (
     MockController,
     MockModel,
 )
-from utils import SSHKeyHelper
+from utils import JujuBackupAllHelper, SSHKeyHelper
 
 
-class TestUtils(unittest.TestCase):
-    """Utils test class."""
+class TestJujuBackupAllHelper(unittest.TestCase):
+    """Test JujuBackupAllHelper's methods."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up class fixture."""
+        # patch relevant modules/methods
+        nrpe_support_patcher = mock.patch("utils.NRPE")
+        nrpe_support_patcher.start()
+        cls.addClassCleanup(nrpe_support_patcher.stop)
+
+        charm_dir_patcher = mock.patch("charmhelpers.core.hookenv.charm_dir")
+        patch = charm_dir_patcher.start()
+        cls.addClassCleanup(charm_dir_patcher.stop)
+        patch.return_value = "/a/directory/"
+
+    @mock.patch("utils.BackupProcessor.process_backups")
+    @mock.patch("utils.JujuBackupAllHelper._update_dir_owner")
+    @mock.patch("utils.JujuBackupAllHelper.push_ssh_keys")
+    def test_perform_backup(self, process_backups, update_dir_owner, push_ssh_keys):
+        """Test perform_backup calls the right methods."""
+        model = mock.MagicMock()
+        model.config = MOCK_CONFIG
+        backup_helper = JujuBackupAllHelper(model)
+
+        backup_helper.perform_backup()
+
+        push_ssh_keys.assert_called_once()
+        process_backups.assert_called_once()
+        update_dir_owner.assert_called_once_with(MOCK_CONFIG["backup-dir"])
+
+    @mock.patch("pathlib.Path.write_text")
+    def test_update_crontab(self, cronjob_write_text):
+        """Test update_crontab properly renders the cronjob."""
+        import config
+
+        model = mock.MagicMock()
+        model.config = MOCK_CONFIG
+        backup_helper = JujuBackupAllHelper(model)
+
+        backup_helper.update_crontab()
+
+        expected_cron_job = "PATH=/usr/bin:/bin:/snap/bin\n{} {} {} --debug --purge {} --task-timeout {} >> {} 2>&1\n".format(  # noqa E501
+            MOCK_CONFIG["crontab"],
+            config.BACKUP_USERNAME,
+            config.Paths.AUTO_BACKUP_SCRIPT_PATH,
+            MOCK_CONFIG["backup-retention-period"],
+            MOCK_CONFIG["timeout"],
+            config.Paths.AUTO_BACKUP_LOG_PATH,
+        )
+        cronjob_write_text.assert_called_once_with(expected_cron_job)
+
+
+class TestSSHKeyHelper(unittest.TestCase):
+    """Test SSHKeyHelper's methods."""
 
     @classmethod
     def setUpClass(cls):
@@ -28,6 +81,7 @@ class TestUtils(unittest.TestCase):
         # patch relevant modules/methods
         cls.nrpe_support_patcher = mock.patch("utils.NRPE")
         cls.nrpe_support_patcher.start()
+        cls.addClassCleanup(cls.nrpe_support_patcher.stop)
 
         cls.charm_dir_patcher = mock.patch("charmhelpers.core.hookenv.charm_dir")
         patch = cls.charm_dir_patcher.start()
@@ -35,7 +89,7 @@ class TestUtils(unittest.TestCase):
 
     def setUp(self):
         """Set up tests."""
-        self.model = mock.Mock()
+        self.model = mock.MagicMock()
         self.helper = SSHKeyHelper(
             Config(args=MOCK_CONFIG),
             yaml.safe_load(ACCOUNTS_YAML)["controllers"],
