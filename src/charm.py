@@ -4,8 +4,6 @@
 
 import logging
 
-from charmhelpers.core import hookenv
-
 from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
@@ -44,8 +42,12 @@ class JujuBackupAllCharm(CharmBase):
 
     def _on_do_backup_action(self, event):
         """Handle the dobackup action."""
-        backup_results = self.helper.perform_backup(omit_models=[
-            name for name in hookenv.action_get("omit-models").split(",") if name])
+        omit_models_param = event.params.get("omit-models", "")
+        if omit_models_param:
+            omit_models = omit_models_param.split(",")
+        else:
+            omit_models = []
+        backup_results = self.helper.perform_backup(omit_models=omit_models)
         event.set_results({"result": backup_results})
 
     def _on_push_ssh_keys_action(self, event):

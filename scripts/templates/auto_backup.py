@@ -126,11 +126,11 @@ class AutoJujuBackupAll:
         )
 
         parser.add_argument(
-            "--omit-models"
+            "--omit-model",
             action="append",
             dest="omit_models",
             metavar="MODEL_NAME",
-            help="Names of models to omit during backup run"
+            help="Omit this model during backup run. Can be specified multiple times.",
         )
 
         args = parser.parse_args()

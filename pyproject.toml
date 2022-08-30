@@ -1,24 +1,35 @@
+# This is a template `pyproject.toml` file for ops charms
+# This file is managed by bootstack-charms-spec and should not be modified
+# within individual charm repos. https://launchpad.net/bootstack-charms-spec
+
 [tool.flake8]
-ignore = ["D100","D103"]
-exclude = [".eggs", ".git", ".tox", ".venv", ".build", "dist", "charmhelpers", "mod", "build"]
+ignore = ["D100", "D101", "D102", "D103"]
+exclude = ['.eggs', '.git', '.tox', '.venv', '.build', 'report']
 max-line-length = 88
 max-complexity = 10
 
 [tool.black]
+line-length = 88
 exclude = '''
-(
-    \.eggs
-  | \.git
-  | \.tox
-  | \.venv
-  | \.build
-  | dist
-  | charmhelpers
-  | mod
-  | build
+/(
+    | .eggs
+    | .git
+    | .tox
+    | .venv
+    | .build
+    | report
 )/
 '''
 
 [tool.isort]
 profile = "black"
-skip_glob = [".eggs", ".git", ".tox", ".venv", ".build", "dist", "charmhelpers", "mod", "build"]
+skip_glob = '''
+/(
+    | .eggs
+    | .git
+    | .tox
+    | .venv
+    | .build
+    | report
+)/
+'''

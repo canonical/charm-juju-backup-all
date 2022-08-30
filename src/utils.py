@@ -168,15 +168,19 @@ class JujuBackupAllHelper:
         )
 
         if self.charm_config["backup-retention-period"]:
-            cron_job += " --purge {}".format(self.charm_config["backup-retention-period"])
+            cron_job += " --purge {}".format(
+                self.charm_config["backup-retention-period"]
+            )
 
         if self.charm_config["timeout"]:
             cron_job += " --task-timeout {}".format(self.charm_config["timeout"])
 
         if self.charm_config["exclude-models"]:
-            cron_job += " --omit-models {}".format(",".join([
-                name for name in self.charm_config["exclude-models"].split(",") if name
-            ]))
+            exclude_models = self.charm_config["exclude-models"].split(",")
+            omit_model_params = " ".join(
+                ["--omit-model {}".format(m) for m in exclude_models]
+            )
+            cron_job += " " + omit_model_params
 
         cron_job += " >> {} 2>&1\n".format(Paths.AUTO_BACKUP_LOG_PATH)
         Paths.AUTO_BACKUP_CRONTAB_PATH.write_text(cron_job)
@@ -302,7 +306,7 @@ class SSHKeyHelper:
                 logging.error(traceback.format_exc())
 
     def _gen_libjuju_ssh_key_fingerprint(self, raw_pubkey=None):
-        """Generate a pubkey fingerprint in the same format as libjuju Model.get_ssh_keys.
+        """Generate a pubkey fingerprint in the same format as libjuju Model.get_ssh_keys.  # noqa
 
         The output will look something like the following:
 
