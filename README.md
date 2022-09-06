@@ -4,6 +4,19 @@
 
 Juju Backup All - a charm to perform Juju and database backups
 
+<!---
+NOTE(sudeephb): At this time, this charm supports jammy, focal and bionic. Two different
+charm files were built and released - one for jammy, another for focal+bionic. However, because of how
+charmhub is built, it only shows the version that is supported by the latest upload, which, in
+this case, is 22.04. To convey that it is supported in 20.04 and 18.04 as well, the supported versions
+are listed below.
+-->
+This charm runs on the following Ubuntu versions:
+
+* Ubuntu 22.04 LTS
+* Ubuntu 20.04 LTS
+* Ubuntu 18.04 LTS
+
 This charm deploys [juju-backup-all](https://launchpad.net/juju-backup-all),
 along with a script to automate its execution, `auto_backup.py`. In addition,
 a crontab is deployed to run `auto_backup.py`, as well as a Nagios check which
@@ -13,7 +26,7 @@ alerts on any issues when performing backups.
 
 Deploy this charm with:
 ```sh
-juju deploy charm-juju-backup-all juju-backup-all
+juju deploy bootstack-charmers-juju-backup-all
 ```
 
 The following Juju connection config values **must** be set to allow libjuju to
