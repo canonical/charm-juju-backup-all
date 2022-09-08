@@ -1,7 +1,8 @@
 # Learn more about charmcraft.yaml configuration at:
 # https://juju.is/docs/sdk/charmcraft-config
 type: "charm"
-# Note(sudeephb): We are using prebuilt binray wheel of the paramiko package.
+# Note(sudeephb): Dependencies `git` and `paramiko` are required by juju.
+# We are using prebuilt binray wheel of the paramiko package.
 # The reason for this is that if we let it build from source when building the
 # charm, it causes platform dependence for compiled components of libraries like
 # cryptography, which is a dependency of paramiko. Consequently, a charm built on
@@ -19,8 +20,10 @@ parts:
     charm-python-packages: [setuptools < 58]
     prime: ["scripts"]
 # Note(sudeephb): The charm is built on 20.04 and not 22.04
-# because the one built on 22.04 fails to install on 18.04 because 
-# of breaking differences in default python versions. 
+# because the one built on 22.04 fails to install on 18.04 because
+# the following line generated in the charm by 22.04 is not supported
+# by python 3.6, which is the default python version in 18.04:
+# from __future__ import annotations
 bases:
   - build-on:
     - name: ubuntu
