@@ -6,6 +6,12 @@ type: "charm"
 # charm, it causes platform dependence for compiled components of libraries like
 # cryptography, which is a dependency of paramiko. Consequently, a charm built on
 # focal fails to run on jammy and vice versa.
+# Care should be taken while specifying binary wheels so as not to use incompatible builds. 
+# According to the compatibility table:
+# https://github.com/mayeut/pep600_compliance/blob/master/DETAILS.rst,
+# manylinux_2_28 is compatible with 18.10+
+# manylinux_2_24 is compatible with 16.10+
+# manylinux_2014 is compatible with 12.04+
 parts:
   charm:
     build-packages: [git]
@@ -13,7 +19,8 @@ parts:
     charm-python-packages: [setuptools < 58]
     prime: ["scripts"]
 # Note(sudeephb): The charm is built on 20.04 and not 22.04
-# because the one built on 22.04 fails to install on 18.04.
+# because the one built on 22.04 fails to install on 18.04 because 
+# of breaking differences in default python versions. 
 bases:
   - build-on:
     - name: ubuntu
