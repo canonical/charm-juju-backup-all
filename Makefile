@@ -1,13 +1,11 @@
+# This is a template `Makefile` file for ops charms
+# This file is managed by bootstack-charms-spec and should not be modified
+# within individual charm repos. https://launchpad.net/bootstack-charms-spec
+
 PYTHON := /usr/bin/python3
 
 PROJECTPATH=$(dir $(realpath $(MAKEFILE_LIST)))
-ifndef CHARM_BUILD_DIR
-	CHARM_BUILD_DIR=${PROJECTPATH}.build
-endif
-ifdef CONTAINER
-  BUILD_ARGS="--destructive-mode"
-endif
-
+RELEASE_CHANNEL:=edge
 METADATA_FILE="metadata.yaml"
 CHARM_NAME=$(shell cat ${PROJECTPATH}/${METADATA_FILE} | grep -E '^name:' | awk '{print $$2}')
 
@@ -15,33 +13,26 @@ help:
 	@echo "This project supports the following targets"
 	@echo ""
 	@echo " make help - show this text"
-	@echo " make clean - remove unneeded files"
 	@echo " make dev-environment - setup the development environment"
+	@echo " make pre-commit - run pre-commit checks on all the files"
 	@echo " make submodules - initialize, fetch, and checkout any nested submodules"
 	@echo " make submodules-update - update submodules to latest changes on remote branch"
+	@echo " make clean - remove unneeded files and clean charmcraft environment"
 	@echo " make build - build the charm"
-	@echo " make lint - run flake8, black --check and isort --check-only"
+	@echo " make release - run clean, build and upload charm"
+	@echo " make lint - run flake8, black --check and isort --check"
 	@echo " make reformat - run black and isort and reformat files"
-	@echo " make proof - run charm proof"
 	@echo " make unittests - run the tests defined in the unittest subdirectory"
 	@echo " make functional - run the tests defined in the functional subdirectory"
-	@echo " make test - run lint, proof, unittests and functional targets"
-	@echo " make pre-commit - run pre-commit checks on all the files"
+	@echo " make test - run lint, unittests and functional targets"
 	@echo ""
 
-clean:
-	@echo "Cleaning files"
-	@git clean -ffXd -e '!.idea' -e '!.venv'
-	@echo "Cleaning existing build"
-	@rm -rf ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@charmcraft clean
-	@rm -rf ${PROJECTPATH}/${CHARM_NAME}.charm
-
 dev-environment:
-	@echo "Creating virtualenv and installing pre-commit"
-	@virtualenv -p python3 .venv
-	@.venv/bin/pip install -r requirements-dev.txt
-	@.venv/bin/pre-commit install
+	@echo "Creating virtualenv with pre-commit installed"
+	@tox -r -e dev-environment
+
+pre-commit:
+	@tox -e pre-commit
 
 submodules:
 	@echo "Cloning submodules"
@@ -51,13 +42,23 @@ submodules-update:
 	@echo "Pulling latest updates for submodules"
 	@git submodule update --init --recursive --remote --merge
 
-build: clean submodules-update
-	@echo "Building charm to base directory ${CHARM_BUILD_DIR}/${CHARM_NAME}"
-	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@charmcraft -v pack
+clean:
+	@echo "Cleaning files"
+	@git clean -ffXd -e '!.idea' -e '!.vscode'
+	@echo "Cleaning existing build"
+	@rm -rf ${PROJECTPATH}/${CHARM_NAME}*.charm
+	@echo "Cleaning charmcraft"
+	@charmcraft clean
+
+build: clean
+	@echo "Building charm"
+	@charmcraft -v pack ${BUILD_ARGS}
 	@bash -c ./rename.sh
-	@mkdir -p ${CHARM_BUILD_DIR}/${CHARM_NAME}
-	@unzip ${PROJECTPATH}/${CHARM_NAME}.charm -d ${CHARM_BUILD_DIR}/${CHARM_NAME}
+
+
+release: build
+	@echo "Releasing charm to ${RELEASE_CHANNEL} channel"
+	@charmcraft upload ${CHARM_NAME}.charm --release ${RELEASE_CHANNEL}
 
 lint:
 	@echo "Running lint checks"
@@ -67,23 +68,16 @@ reformat:
 	@echo "Reformat files with black and isort"
 	@tox -e reformat
 
-proof:
-	@echo "Running charm proof"
-	@-charm proof
-
 unittests:
 	@echo "Running unit tests"
-	@tox -e unit
+	@tox -e unit -- ${UNIT_ARGS}
 
 functional: build
-	@echo "Executing functional tests using built charm at ${CHARM_BUILD_DIR}"
-	@CHARM_BUILD_DIR=${CHARM_BUILD_DIR} CHARM_LOCATION=${PROJECTPATH} tox -e func
+	@echo "Executing functional tests using built charm at ${PROJECTPATH}"
+	@CHARM_LOCATION=${PROJECTPATH} tox -e func -- ${FUNC_ARGS}
 
-test: lint proof unittests functional
+test: lint unittests functional
 	@echo "Tests completed for charm ${CHARM_NAME}."
 
-pre-commit:
-	@tox -e pre-commit
-
 # The targets below don't depend on a file
-.PHONY: help submodules submodules-update clean dev-environment build lint reformat proof unittests functional test pre-commit
+.PHONY: help dev-environment pre-commit submodules submodules-update clean build lint reformat unittests functional
