@@ -292,7 +292,7 @@ class SSHKeyHelper:
                 logging.error(traceback.format_exc())
 
     def _gen_libjuju_ssh_key_fingerprint(self, raw_pubkey=None):
-        """Generate a pubkey fingerprint in the same format as libjuju Model.get_ssh_keys.
+        """Generate a pubkey fingerprint in the same format as libjuju Model.get_ssh_keys.  # noqa
 
         The output will look something like the following:
 
