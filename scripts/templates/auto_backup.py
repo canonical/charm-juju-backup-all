@@ -60,7 +60,7 @@ class AutoJujuBackupAll:
         if "JUJUDATA_DIR" not in os.environ:
             os.environ["JUJU_DATA"] = str(Paths.JUJUDATA_DIR)
 
-    def perform_backup(self):
+    def perform_backup(self, omit_models=None):
         """Perform backups."""
         # first ensure the ssh key is in all models, then perform the backup
         accounts_yaml = (Paths.JUJUDATA_DIR / "accounts.yaml").read_text()
@@ -69,7 +69,7 @@ class AutoJujuBackupAll:
         ssh_helper.push_ssh_keys_to_models()
 
         backup_processor = BackupProcessor(self.config)
-        backup_results = backup_processor.process_backups()
+        backup_results = backup_processor.process_backups(omit_models=omit_models)
         logger.info("backup results = '{}'".format(backup_results))
         return backup_results
 
@@ -125,6 +125,14 @@ class AutoJujuBackupAll:
             help="Individual task timeout length",
         )
 
+        parser.add_argument(
+            "--omit-model",
+            action="append",
+            dest="omit_models",
+            metavar="MODEL_NAME",
+            help="Omit this model during backup run. Can be specified multiple times.",
+        )
+
         args = parser.parse_args()
 
         log_level = logging.DEBUG if args.debug else logging.ERROR
@@ -142,7 +150,7 @@ class AutoJujuBackupAll:
         PID_FILENAME.write_text(pid)
 
         try:
-            backup_results = self.perform_backup()
+            backup_results = self.perform_backup(omit_models=args.omit_models)
             Paths.AUTO_BACKUP_RESULTS_PATH.write_text(backup_results)
 
             # purge old backups if requested

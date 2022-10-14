@@ -3,5 +3,11 @@
 
 do-backup:
   description: Performs a backup against all configured controllers/models
+  params:
+    omit-models:
+      type: string
+      default: ""
+      description: |
+        Comma-delimited list of model names to omit during this backup run
 push-ssh-keys:
   description: Push the charm ssh keys to all models in configured controllers

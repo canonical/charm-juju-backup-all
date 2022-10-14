@@ -60,6 +60,10 @@ options:
     description: |
       Whether to backup the juju client data (accounts, controllers, ssh keys)
       as part of the backup operations.
+  exclude-models:
+    type: string
+    default: ""
+    description: Comma-delimited list of model names to omit during backup runs
   timeout:
     type: int
     default: 60

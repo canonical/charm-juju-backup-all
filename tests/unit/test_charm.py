@@ -174,7 +174,7 @@ class TestCharm(unittest.TestCase):
     @mock.patch("utils.SSHKeyHelper.push_ssh_keys_to_models")
     @mock.patch("jujubackupall.process.BackupProcessor.process_backups")
     @mock.patch("charmhelpers.core.host.chownr")
-    def test_20_do_backup_action(
+    def test_20_do_backup_action_all_models(
         self, mock_chownr, mock_process_backups, mock_push_ssh_keys
     ):
         """Test the do_backup action."""
@@ -186,13 +186,68 @@ class TestCharm(unittest.TestCase):
         )
 
         action_event = mock.Mock(params={})
+        action_event.params = {}
         mock_results = '{"mock_results": true}'
         mock_process_backups.return_value = mock_results
 
         self.harness.begin()
         self.harness.charm._on_do_backup_action(action_event)
 
-        mock_process_backups.assert_called_once()
+        mock_process_backups.assert_called_once_with(omit_models=[])
+        mock_push_ssh_keys.assert_called_once()
+        action_event.set_results.assert_called_once_with({"result": mock_results})
+
+    @mock.patch("utils.SSHKeyHelper.push_ssh_keys_to_models")
+    @mock.patch("jujubackupall.process.BackupProcessor.process_backups")
+    @mock.patch("charmhelpers.core.host.chownr")
+    def test_20_do_backup_action_omit_single_model(
+        self, mock_chownr, mock_process_backups, mock_push_ssh_keys
+    ):
+        """Test the do_backup action."""
+        self.harness.update_config(
+            {
+                "controllers": CONTROLLERS_YAML,
+                "accounts": ACCOUNTS_YAML,
+            }
+        )
+
+        action_event = mock.Mock(params={})
+        action_event.params = {"omit-models": "omit-me"}
+        mock_results = '{"mock_results": true}'
+        mock_process_backups.return_value = mock_results
+
+        self.harness.begin()
+        self.harness.charm._on_do_backup_action(action_event)
+
+        mock_process_backups.assert_called_once_with(omit_models=["omit-me"])
+        mock_push_ssh_keys.assert_called_once()
+        action_event.set_results.assert_called_once_with({"result": mock_results})
+
+    @mock.patch("utils.SSHKeyHelper.push_ssh_keys_to_models")
+    @mock.patch("jujubackupall.process.BackupProcessor.process_backups")
+    @mock.patch("charmhelpers.core.host.chownr")
+    def test_20_do_backup_action_omit_models(
+        self, mock_chownr, mock_process_backups, mock_push_ssh_keys
+    ):
+        """Test the do_backup action."""
+        self.harness.update_config(
+            {
+                "controllers": CONTROLLERS_YAML,
+                "accounts": ACCOUNTS_YAML,
+            }
+        )
+
+        action_event = mock.Mock(params={})
+        action_event.params = {"omit-models": "omit-me,and-me-too"}
+        mock_results = '{"mock_results": true}'
+        mock_process_backups.return_value = mock_results
+
+        self.harness.begin()
+        self.harness.charm._on_do_backup_action(action_event)
+
+        mock_process_backups.assert_called_once_with(
+            omit_models=["omit-me", "and-me-too"]
+        )
         mock_push_ssh_keys.assert_called_once()
         action_event.set_results.assert_called_once_with({"result": mock_results})
 

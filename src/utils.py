@@ -141,12 +141,12 @@ class JujuBackupAllHelper:
 
         self._update_dir_owner(Paths.JUJUDATA_DIR)
 
-    def perform_backup(self):
+    def perform_backup(self, omit_models=None):
         """Perform backups."""
         # first ensure the ssh key is in all models, then perform the backup
         self.push_ssh_keys()
         backup_processor = BackupProcessor(self.config)
-        backup_results = backup_processor.process_backups()
+        backup_results = backup_processor.process_backups(omit_models=omit_models)
         logging.info("backup results = '{}'".format(backup_results))
         self._update_dir_owner(self.charm_config["backup-dir"])
         return backup_results
@@ -160,15 +160,29 @@ class JujuBackupAllHelper:
     def update_crontab(self):
         """Update crontab "/etc/cron.d/juju-backup-all" that runs "auto_backup.py"."""
         path = "PATH=/usr/bin:/bin:/snap/bin"
-        cron_job = "{}\n{} {} {} --debug --purge {} --task-timeout {} >> {} 2>&1\n".format(  # noqa E501
+        cron_job = "{}\n{} {} {} --debug".format(
             path,
             self.charm_config["crontab"],
             BACKUP_USERNAME,
             Paths.AUTO_BACKUP_SCRIPT_PATH,
-            self.charm_config["backup-retention-period"],
-            self.charm_config["timeout"],
-            Paths.AUTO_BACKUP_LOG_PATH,
         )
+
+        if self.charm_config["backup-retention-period"]:
+            cron_job += " --purge {}".format(
+                self.charm_config["backup-retention-period"]
+            )
+
+        if self.charm_config["timeout"]:
+            cron_job += " --task-timeout {}".format(self.charm_config["timeout"])
+
+        if self.charm_config["exclude-models"]:
+            exclude_models = self.charm_config["exclude-models"].split(",")
+            omit_model_params = " ".join(
+                ["--omit-model {}".format(m) for m in exclude_models]
+            )
+            cron_job += " " + omit_model_params
+
+        cron_job += " >> {} 2>&1\n".format(Paths.AUTO_BACKUP_LOG_PATH)
         Paths.AUTO_BACKUP_CRONTAB_PATH.write_text(cron_job)
 
     def update_jujudata_config(self):
