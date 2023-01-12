@@ -20,6 +20,8 @@ provides:
   nrpe-external-master:
     interface: nrpe-external-master
     scope: container
+  metrics-endpoint:
+    interface: prometheus_scrape
 resources:
   exporter-snap:
     type: file
