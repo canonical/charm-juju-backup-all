@@ -2,8 +2,8 @@
 # Copyright 2021 Canonical Ltd.
 # See LICENSE file for licensing details.
 
-import os
 import logging
+import os
 
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from ops.charm import CharmBase
@@ -76,7 +76,9 @@ class JujuBackupAllCharm(CharmBase):
         """
         if not self._snap_path_set:
             try:
-                self._snap_path = str(self.model.resources.fetch("exporter-snap").absolute())
+                self._snap_path = str(
+                    self.model.resources.fetch("exporter-snap").absolute()
+                )
                 # Don't return path to empty resource file
                 if not os.path.getsize(self._snap_path) > 0:
                     self._snap_path = None
@@ -125,6 +127,8 @@ class JujuBackupAllCharm(CharmBase):
                 self._stored.config[key] = value
                 change_set.add(key)
 
+        self.helper.exporter.config_changed(change_set, self.metrics_endpoint)
+
         if not self._stored.installed:
             logging.info(
                 "Config changed called before install complete, deferring event: "
@@ -151,7 +155,6 @@ class JujuBackupAllCharm(CharmBase):
         self.helper.create_backup_dir()
         self.helper.update_jujudata_config()
         self.helper.update_crontab()
-        self.helper.exporter.config_changed(change_set, self.metrics_endpoint)
         self.model.unit.status = ActiveStatus("Unit is ready")
 
     def _on_nem_changed(self, event):
