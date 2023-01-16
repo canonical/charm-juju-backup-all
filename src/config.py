@@ -19,3 +19,10 @@ class Paths:
     AUTO_BACKUP_RESULTS_PATH = JUJUDATA_DIR / "auto_backup_results.json"
     AUTO_BACKUP_CRONTAB_PATH = pathlib.Path("/etc/cron.d/juju-backup-all")
     NAGIOS_PLUGINS_DIR = pathlib.Path("/usr/local/lib/nagios/plugins/")
+    EXPORTER_NAME = "prometheus-juju-backup-all-exporter"
+    EXPORTER_CONFIG = pathlib.Path(
+        "/var/snap/{}/current/config.yaml".format(EXPORTER_NAME)
+    )
+    EXPORTER_BACKUP_RESULTS_PATH = pathlib.Path(
+        "/var/snap/{}/common".format(EXPORTER_NAME)
+    )

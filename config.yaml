@@ -81,3 +81,14 @@ options:
           juju-myservice-0
       If you're running multiple environments with the same services in them
       this allows you to differentiate between them.
+  exporter-channel:
+    type: string
+    default: "stable"
+    description: |
+      Install prometheus-juju-backup-all-exporter snap from "exporter-channel".
+      Supported values are: "stable", "candidate", "beta" and "edge". Note that
+      it will be superseded by local resources: "exporter-snap".
+  exporter-port:
+    type: int
+    default: 10000
+    description: Start the exporter at "exporter-port".

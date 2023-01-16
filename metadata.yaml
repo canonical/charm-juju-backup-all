@@ -20,3 +20,13 @@ provides:
   nrpe-external-master:
     interface: nrpe-external-master
     scope: container
+  metrics-endpoint:
+    interface: prometheus_scrape
+resources:
+  exporter-snap:
+    type: file
+    description: |
+      (Optional) Snap that implements actual data collection and export. If not
+      provided, charm will try to download prometheus-juju-backup-all-exporter
+      from snap store.
+    filename: prometheus-juju-backup-all-exporter.snap
