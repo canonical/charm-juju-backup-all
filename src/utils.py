@@ -21,7 +21,6 @@ from ops.model import BlockedStatus
 from yaml.parser import ParserError
 
 from config import BACKUP_USERNAME, Paths
-from exporter import Exporter
 
 # configure libjuju to the location of the credentials
 if "JUJUDATA_DIR" not in os.environ:
@@ -31,12 +30,11 @@ if "JUJUDATA_DIR" not in os.environ:
 class JujuBackupAllHelper:
     """Juju-backup-all helper object."""
 
-    def __init__(self, model, stored):
+    def __init__(self, model):
         """Initialise the helper."""
         self.model = model
         self.charm_config = model.config
         self.nrpe = NRPE()
-        self.exporter = Exporter(stored)
         self.config = Config(args=self._charm_config_to_datadict())
         self.charm_dir = pathlib.Path(hookenv.charm_dir())
 

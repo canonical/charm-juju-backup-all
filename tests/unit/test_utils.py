@@ -42,7 +42,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
         """Test perform_backup calls the right methods."""
         model = mock.MagicMock()
         model.config = MOCK_CONFIG
-        backup_helper = JujuBackupAllHelper(model, model._stored)
+        backup_helper = JujuBackupAllHelper(model)
 
         backup_helper.perform_backup()
 
@@ -57,7 +57,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
 
         model = mock.MagicMock()
         model.config = MOCK_CONFIG
-        backup_helper = JujuBackupAllHelper(model, model._stored)
+        backup_helper = JujuBackupAllHelper(model)
 
         backup_helper.update_crontab()
 
@@ -79,7 +79,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
         model = mock.MagicMock()
         model.config = MOCK_CONFIG
         model.config["exclude-models"] = "omit-me"
-        backup_helper = JujuBackupAllHelper(model, model._stored)
+        backup_helper = JujuBackupAllHelper(model)
 
         backup_helper.update_crontab()
 
@@ -101,7 +101,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
         model = mock.MagicMock()
         model.config = MOCK_CONFIG
         model.config["exclude-models"] = "omit-me,and-me-too"
-        backup_helper = JujuBackupAllHelper(model, model._stored)
+        backup_helper = JujuBackupAllHelper(model)
 
         backup_helper.update_crontab()
 

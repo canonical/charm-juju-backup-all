@@ -5,12 +5,12 @@
 import logging
 import os
 
-from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, ModelError
 
+from exporter import Exporter
 from utils import JujuBackupAllHelper
 
 logger = logging.getLogger(__name__)
@@ -37,21 +37,13 @@ class JujuBackupAllCharm(CharmBase):
         )
 
         # initialise helpers, etc.
-        self.helper = JujuBackupAllHelper(self.model, self._stored)
+        self.helper = JujuBackupAllHelper(self.model)
         self._snap_path = None
         self._snap_path_set = False
         self._configure_logging()
 
         # initialize relation hooks
-        self.framework.observe(
-            self.on["metrics-endpoint"].relation_joined,
-            self._on_exporter_relation_joined,
-        )
-        self.framework.observe(
-            self.on["metrics-endpoint"].relation_departed,
-            self._on_exporter_relation_departed,
-        )
-        self.metrics_endpoint = MetricsEndpointProvider(
+        self.exporter = Exporter(
             self,
             "metrics-endpoint",
             jobs=[
@@ -127,7 +119,7 @@ class JujuBackupAllCharm(CharmBase):
                 self._stored.config[key] = value
                 change_set.add(key)
 
-        self.helper.exporter.config_changed(change_set, self.metrics_endpoint)
+        self.exporter.on_config_changed(change_set)
 
         if not self._stored.installed:
             logging.info(
@@ -161,16 +153,6 @@ class JujuBackupAllCharm(CharmBase):
         """Handle nrpe-external-master relation change."""
         logging.info("Got nrpe-external-master changed {}".format(event))
         self.helper.configure_nrpe()
-
-    def _on_exporter_relation_joined(self, event):
-        """Handle metrics-endpoint relation joined."""
-        logging.info("Got metrics-endpoint joined {}".format(event))
-        self.helper.exporter._on_relation_joined(event)
-
-    def _on_exporter_relation_departed(self, event):
-        """Handle metrics-endpoint relation departed."""
-        logging.info("Got metrics-endpoint departed {}".format(event))
-        self.helper.exporter._on_relation_departed(event)
 
     def _configure_logging(self):
         logging.getLogger("websockets").setLevel(logging.ERROR)

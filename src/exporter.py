@@ -2,6 +2,7 @@ from functools import wraps
 from logging import getLogger
 
 from charms.operator_libs_linux.v1 import snap
+from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from yaml import safe_dump
 
 from config import Paths
@@ -9,64 +10,75 @@ from config import Paths
 logger = getLogger(__name__)
 
 
-class Exporter(object):
-    """A class representing the exporter snap."""
+def ensure_snap_installed(func):
+    """Ensure snap is installed before running a snap operation."""
 
-    def __init__(self, stored):
-        """Initialize the class."""
-        self._stored = stored
-        self._exporter = None
-
-    @staticmethod
-    def _ensure_installed(func):
-        """Ensure snap is installed before running a snap operation."""
-
-        @wraps(func)
-        def wrapper(self, *args, **kwargs):
+    @wraps(func)
+    def wrapper(self, *args, **kwargs):
+        try:
             fn = func.__name__
             self._exporter = self._exporter or snap.SnapCache()[Paths.EXPORTER_NAME]
             logger.info("%s exporter snap.", fn.capitalize())
             if not (self._exporter and self._exporter.present):
-                msg = "Cannot %s the exporter because it is not installed."
-                logger.error(msg, fn)
-                logger.error("%s exporter snap - Failed", fn.capitalize())
-                return
+                msg = f"Cannot {fn} the exporter because it is not installed."
+                raise snap.SnapNotFoundError(msg)
             func(self, *args, **kwargs)
             logger.info("%s exporter snap - Done", fn.capitalize())
+        except snap.SnapNotFoundError as e:
+            logger.error(str(e))
+            logger.error("%s exporter snap - Failed", fn.capitalize())
 
-        return wrapper
+    return wrapper
+
+
+class Exporter(MetricsEndpointProvider):
+    """A class representing the exporter and the metric endpoints."""
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the class."""
+        super().__init__(*args, **kwargs)
+        self._exporter = None
+        self._stored = self._charm._stored
+        events = self._charm.on[self._relation_name]
+        self.framework.observe(events.relation_joined, self._on_relation_joined)
+        self.framework.observe(events.relation_departed, self._on_relation_departed)
 
     def install_or_refresh(self, channel=None):
         """Install or refresh the exporter snap."""
         logger.info("Installing exporter snap.")
         channel = channel or self._stored.config["exporter-channel"]
-        if self._stored.config["exporter-snap"]:
-            snap.install_local(self._stored.config["exporter-snap"], dangerous=True)
+        try:
+            if self._stored.config["exporter-snap"]:
+                snap.install_local(self._stored.config["exporter-snap"], dangerous=True)
+            else:
+                snap.add([Paths.EXPORTER_NAME], channel=channel)
+            logger.info("Installed exportr snap.")
+        except snap.SnapError as e:
+            logger.error(str(e))
         else:
-            snap.add([Paths.EXPORTER_NAME], channel=channel)
-        logger.info("Exporter snap installed.")
+            logger.info("Exporter snap installed.")
 
-    @_ensure_installed
+    @ensure_snap_installed
     def remove(self):
         """Remove the exporter snap."""
         snap.remove([Paths.EXPORTER_NAME])
 
-    @_ensure_installed
+    @ensure_snap_installed
     def start(self):
         """Start the exporter daemon."""
         self._exporter.start()
 
-    @_ensure_installed
+    @ensure_snap_installed
     def restart(self):
         """Restart the exporter daemon."""
         self._exporter.restart()
 
-    @_ensure_installed
+    @ensure_snap_installed
     def stop(self):
         """Stop the exporter daemon."""
         self._exporter.stop()
 
-    @_ensure_installed
+    @ensure_snap_installed
     def configure(self):
         """Configure exporter daemon."""
         if not (self._exporter and self._exporter.present):
@@ -83,15 +95,16 @@ class Exporter(object):
             )
         self._exporter.restart()
 
-    def config_changed(self, change_set, metrics_endpoint):
-        if len(change_set) > 0:
+    def on_config_changed(self, change_set):
+        observe = set(["exporter-snap", "exporter-channel", "exporter-port"])
+        if len(observe.intersection(change_set)) > 0:
             logger.info("Exported config changed")
         if "exporter-snap" in change_set or "exporter-channel" in change_set:
             self.install_or_refresh()
         if "exporter-port" in change_set:
             # (@raychan96) Though dynamically changing static configure is not
             # suggested, we still offer the possibility to change one of them.
-            metrics_endpoint.update_scrape_job_spec(
+            self.update_scrape_job_spec(
                 [
                     {
                         "static_configs": [
