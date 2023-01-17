@@ -163,7 +163,7 @@ class JujuBackupAllHelper:
         cron_job = "{}\n{} {} {} --debug".format(
             path,
             self.charm_config["crontab"],
-            BACKUP_USERNAME,
+            "root",  # backup script need to write to /var/snap/{exporter_name}/common
             Paths.AUTO_BACKUP_SCRIPT_PATH,
         )
 

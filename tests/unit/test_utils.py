@@ -63,7 +63,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
 
         expected_cron_job = "PATH=/usr/bin:/bin:/snap/bin\n{} {} {} --debug --purge {} --task-timeout {} >> {} 2>&1\n".format(  # noqa E501
             MOCK_CONFIG["crontab"],
-            config.BACKUP_USERNAME,
+            "root",
             config.Paths.AUTO_BACKUP_SCRIPT_PATH,
             MOCK_CONFIG["backup-retention-period"],
             MOCK_CONFIG["timeout"],
@@ -85,7 +85,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
 
         expected_cron_job = "PATH=/usr/bin:/bin:/snap/bin\n{} {} {} --debug --purge {} --task-timeout {} --omit-model omit-me >> {} 2>&1\n".format(  # noqa E501
             MOCK_CONFIG["crontab"],
-            config.BACKUP_USERNAME,
+            "root",
             config.Paths.AUTO_BACKUP_SCRIPT_PATH,
             MOCK_CONFIG["backup-retention-period"],
             MOCK_CONFIG["timeout"],
@@ -107,7 +107,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
 
         expected_cron_job = "PATH=/usr/bin:/bin:/snap/bin\n{} {} {} --debug --purge {} --task-timeout {} --omit-model omit-me --omit-model and-me-too >> {} 2>&1\n".format(  # noqa E501
             MOCK_CONFIG["crontab"],
-            config.BACKUP_USERNAME,
+            "root",
             config.Paths.AUTO_BACKUP_SCRIPT_PATH,
             MOCK_CONFIG["backup-retention-period"],
             MOCK_CONFIG["timeout"],
