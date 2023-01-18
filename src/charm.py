@@ -107,9 +107,9 @@ class JujuBackupAllCharm(CharmBase):
 
     def _on_config_changed(self, event):
         """Reconfigure charm."""
-        # (@raychan96) Keep track of what config options are changed. This can
-        # be helpful when we want to respond to the change of a specific config
-        # option.
+        # Keep track of what model config options + some extra config related
+        # information are changed. This can be helpful when we want to respond
+        # to the change of a specific config option.
         change_set = set()
         model_config = {k: v for k, v in self.model.config.items()}
         model_config.update({"exporter-snap": self.snap_path})

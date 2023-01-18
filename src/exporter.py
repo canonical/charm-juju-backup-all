@@ -10,7 +10,7 @@ from config import Paths
 logger = getLogger(__name__)
 
 
-def ensure_snap_installed(func):
+def check_snap_installed(func):
     """Ensure snap is installed before running a snap operation."""
 
     @wraps(func)
@@ -58,27 +58,27 @@ class Exporter(MetricsEndpointProvider):
         else:
             logger.info("Exporter snap installed.")
 
-    @ensure_snap_installed
+    @check_snap_installed
     def remove(self):
         """Remove the exporter snap."""
         snap.remove([Paths.EXPORTER_NAME])
 
-    @ensure_snap_installed
+    @check_snap_installed
     def start(self):
         """Start the exporter daemon."""
         self._exporter.start()
 
-    @ensure_snap_installed
+    @check_snap_installed
     def restart(self):
         """Restart the exporter daemon."""
         self._exporter.restart()
 
-    @ensure_snap_installed
+    @check_snap_installed
     def stop(self):
         """Stop the exporter daemon."""
         self._exporter.stop()
 
-    @ensure_snap_installed
+    @check_snap_installed
     def configure(self):
         """Configure exporter daemon."""
         if not (self._exporter and self._exporter.present):
@@ -102,8 +102,8 @@ class Exporter(MetricsEndpointProvider):
         if "exporter-snap" in change_set or "exporter-channel" in change_set:
             self.install_or_refresh()
         if "exporter-port" in change_set:
-            # (@raychan96) Though dynamically changing static configure is not
-            # suggested, we still offer the possibility to change one of them.
+            # Though dynamically changing static configure is not suggested, we
+            # still offer the possibility to change one of them.
             self.update_scrape_job_spec(
                 [
                     {
