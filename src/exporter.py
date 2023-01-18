@@ -1,11 +1,12 @@
 from functools import wraps
 from logging import getLogger
+from time import sleep
 
 from charms.operator_libs_linux.v1 import snap
 from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from yaml import safe_dump
 
-from config import Paths
+from config import EXPORTER_NAME, EXPORTER_RELATION_NAME, Paths
 
 logger = getLogger(__name__)
 
@@ -17,7 +18,7 @@ def check_snap_installed(func):
     def wrapper(self, *args, **kwargs):
         try:
             fn = func.__name__
-            self._exporter = self._exporter or snap.SnapCache()[Paths.EXPORTER_NAME]
+            self._exporter = self._exporter or snap.SnapCache()[EXPORTER_NAME]
             logger.info("%s exporter snap.", fn.capitalize())
             if not (self._exporter and self._exporter.present):
                 msg = f"Cannot {fn} the exporter because it is not installed."
@@ -51,7 +52,7 @@ class Exporter(MetricsEndpointProvider):
             if self._stored.config["exporter-snap"]:
                 snap.install_local(self._stored.config["exporter-snap"], dangerous=True)
             else:
-                snap.add([Paths.EXPORTER_NAME], channel=channel)
+                snap.add([EXPORTER_NAME], channel=channel)
             logger.info("Installed exportr snap.")
         except snap.SnapError as e:
             logger.error(str(e))
@@ -61,7 +62,7 @@ class Exporter(MetricsEndpointProvider):
     @check_snap_installed
     def remove(self):
         """Remove the exporter snap."""
-        snap.remove([Paths.EXPORTER_NAME])
+        snap.remove([EXPORTER_NAME])
 
     @check_snap_installed
     def start(self):
@@ -94,6 +95,42 @@ class Exporter(MetricsEndpointProvider):
                 f,
             )
         self._exporter.restart()
+
+    @check_snap_installed
+    def check_health(self):
+        """Check the health of the exporter snap and try to recover it if needed.
+
+        This function perform health check on exporter snap if the exporter is
+        already installed and the metrics-endpoint relation is joined. If it is
+        somehow stopped, we should try to restart it, if not possible we will
+        set the charm to BlockedStatus to alert the users.
+        """
+        relation = self.model.get_relation(EXPORTER_RELATION_NAME)
+        if not relation:
+            return
+
+        try:
+            if self._exporter.services[EXPORTER_NAME]["active"]:
+                logger.info("Exporter health check - healthy.")
+            else:
+                logger.warning("Exporter health check - unhealthy.")
+                logger.warning(
+                    "'%s' joined but the exporter is not up. Restarting...",
+                    EXPORTER_RELATION_NAME,
+                )
+                num_retries = 3
+                for i in range(1, num_retries + 1):
+                    logger.warning("Restarting exporter - %d retry", i)
+                    self.restart()
+                    sleep(3)
+                    if self._exporter.services[EXPORTER_NAME]["active"]:
+                        logger.info("Exporter restarted.")
+                        return
+                logger.error("Failed to restart the exporter.")
+        except Exception as e:
+            logger.error(
+                "Unknown error when trying to check exporter health: %s", str(e)
+            )
 
     def on_config_changed(self, change_set):
         observe = set(["exporter-snap", "exporter-channel", "exporter-port"])

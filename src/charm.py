@@ -10,6 +10,7 @@ from ops.framework import StoredState
 from ops.main import main
 from ops.model import ActiveStatus, BlockedStatus, ModelError
 
+from config import EXPORTER_RELATION_NAME
 from exporter import Exporter
 from utils import JujuBackupAllHelper
 
@@ -25,6 +26,7 @@ class JujuBackupAllCharm(CharmBase):
         """Initialize charm and configure states and events to observe."""
         super().__init__(*args)
         self.framework.observe(self.on.install, self._on_install_or_upgrade)
+        self.framework.observe(self.on.update_status, self._on_update_status)
         self.framework.observe(self.on.upgrade_charm, self._on_install_or_upgrade)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.do_backup_action, self._on_do_backup_action)
@@ -45,7 +47,7 @@ class JujuBackupAllCharm(CharmBase):
         # initialize relation hooks
         self.exporter = Exporter(
             self,
-            "metrics-endpoint",
+            EXPORTER_RELATION_NAME,
             jobs=[
                 {
                     "static_configs": [
@@ -104,6 +106,9 @@ class JujuBackupAllCharm(CharmBase):
         self._stored.installed = True
         self.model.unit.status = ActiveStatus("Install complete")
         logging.info("Charm install complete")
+
+    def _on_update_status(self, event):
+        self.exporter.check_health()
 
     def _on_config_changed(self, event):
         """Reconfigure charm."""

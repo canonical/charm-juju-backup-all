@@ -3,6 +3,8 @@
 import pathlib
 
 BACKUP_USERNAME = "jujubackup"
+EXPORTER_NAME = "prometheus-juju-backup-all-exporter"
+EXPORTER_RELATION_NAME = "metrics-endpoint"
 
 
 class Paths:
@@ -19,7 +21,6 @@ class Paths:
     AUTO_BACKUP_RESULTS_PATH = JUJUDATA_DIR / "auto_backup_results.json"
     AUTO_BACKUP_CRONTAB_PATH = pathlib.Path("/etc/cron.d/juju-backup-all")
     NAGIOS_PLUGINS_DIR = pathlib.Path("/usr/local/lib/nagios/plugins/")
-    EXPORTER_NAME = "prometheus-juju-backup-all-exporter"
     EXPORTER_CONFIG = pathlib.Path(
         "/var/snap/{}/current/config.yaml".format(EXPORTER_NAME)
     )
