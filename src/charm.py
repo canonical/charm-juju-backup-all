@@ -3,12 +3,15 @@
 # See LICENSE file for licensing details.
 
 import logging
+import os
 
 from ops.charm import CharmBase
 from ops.framework import StoredState
 from ops.main import main
-from ops.model import ActiveStatus, BlockedStatus
+from ops.model import ActiveStatus, BlockedStatus, ModelError
 
+from config import EXPORTER_RELATION_NAME
+from exporter import Exporter
 from utils import JujuBackupAllHelper
 
 logger = logging.getLogger(__name__)
@@ -23,6 +26,7 @@ class JujuBackupAllCharm(CharmBase):
         """Initialize charm and configure states and events to observe."""
         super().__init__(*args)
         self.framework.observe(self.on.install, self._on_install_or_upgrade)
+        self.framework.observe(self.on.update_status, self._on_update_status)
         self.framework.observe(self.on.upgrade_charm, self._on_install_or_upgrade)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.do_backup_action, self._on_do_backup_action)
@@ -36,9 +40,48 @@ class JujuBackupAllCharm(CharmBase):
 
         # initialise helpers, etc.
         self.helper = JujuBackupAllHelper(self.model)
+        self._snap_path = None
+        self._snap_path_set = False
         self._configure_logging()
 
-        self._stored.set_default(installed=False)
+        # initialize relation hooks
+        self.exporter = Exporter(
+            self,
+            EXPORTER_RELATION_NAME,
+            jobs=[
+                {
+                    "static_configs": [
+                        {
+                            "targets": [f"*:{self.model.config['exporter-port']}"],
+                        }
+                    ],
+                }
+            ],
+        )
+
+        self._stored.set_default(installed=False, config={})
+
+    @property
+    def snap_path(self):
+        """Get local path to exporter snap.
+
+        Returns:
+            snap_path: the path to the snap file if exporter snap is attached or None.
+        """
+        if not self._snap_path_set:
+            try:
+                self._snap_path = str(
+                    self.model.resources.fetch("exporter-snap").absolute()
+                )
+                # Don't return path to empty resource file
+                if not os.path.getsize(self._snap_path) > 0:
+                    self._snap_path = None
+            except ModelError:
+                self._snap_path = None
+            finally:
+                self._snap_path_set = True
+
+        return self._snap_path
 
     def _on_do_backup_action(self, event):
         """Handle the dobackup action."""
@@ -64,8 +107,25 @@ class JujuBackupAllCharm(CharmBase):
         self.model.unit.status = ActiveStatus("Install complete")
         logging.info("Charm install complete")
 
+    def _on_update_status(self, event):
+        self.exporter.check_health()
+
     def _on_config_changed(self, event):
         """Reconfigure charm."""
+        # Keep track of what model config options + some extra config related
+        # information are changed. This can be helpful when we want to respond
+        # to the change of a specific config option.
+        change_set = set()
+        model_config = {k: v for k, v in self.model.config.items()}
+        model_config.update({"exporter-snap": self.snap_path})
+        for key, value in model_config.items():
+            if key not in self._stored.config or self._stored.config[key] != value:
+                logger.info("Setting {} to: {}".format(key, value))
+                self._stored.config[key] = value
+                change_set.add(key)
+
+        self.exporter.on_config_changed(change_set)
+
         if not self._stored.installed:
             logging.info(
                 "Config changed called before install complete, deferring event: "

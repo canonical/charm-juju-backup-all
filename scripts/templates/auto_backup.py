@@ -26,12 +26,14 @@ import os
 import pathlib
 import subprocess
 import sys
+import time
 import traceback
 
 import yaml
 
 # The path below is templated in during charm install this is required to load
 # the charm code and dependencies from this script.
+sys.path.append("REPLACE_CHARMDIR/lib")
 sys.path.append("REPLACE_CHARMDIR/src")
 sys.path.append("REPLACE_CHARMDIR/venv")
 
@@ -47,6 +49,77 @@ logger = logging.getLogger(__name__)
 
 PID_FILENAME = pathlib.Path("/tmp/auto_backup.pid")
 LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
+
+
+def check_backup_file(backup_results_file):
+    """Check the backup result file.
+
+    Check that the backup is completed or not, and return nagios exit status code:
+    - The results must be a valid json object with the expected structure
+    - Each backup entry must have a 'download_path'
+    - The download_path musth be valid
+
+    Nagios status code:
+
+    StatusOK       = 0
+    StatusWarning  = 1
+    StatusCritical = 2
+    StatusUnknown  = 3
+
+    Returns:
+        result_code: nagios exit status
+    """
+    try:
+        with open(backup_results_file, "r") as f:
+            backup_results = json.load(f)
+            if "ERROR" in backup_results:
+                logger.error(
+                    "Detected error when performing backup: '%s'",
+                    backup_results["ERROR"],
+                )
+                return 2
+
+            for backup_type, backup_entries in backup_results.items():
+                if not backup_type.endswith("_backups"):
+                    continue
+
+                for backup_entry in backup_entries:
+                    if "download_path" not in backup_entry:
+                        logger.error(
+                            "Missing backup download_path for: %s, details: %s",
+                            backup_type,
+                            backup_entry,
+                        )
+                        return 2
+                    elif not pathlib.Path(backup_entry["download_path"]).is_file():
+                        logger.error(
+                            "Backup file is missing for: %s, details: %s",
+                            backup_type,
+                            backup_entry,
+                        )
+                        return 2
+    except Exception as e:
+        logger.error(
+            "Invalid backup results file: %s. %s",
+            str(backup_results_file),
+            str(e),
+        )
+        return 2
+    else:
+        logger.info("backups are OK")
+        return 0
+
+
+def write_backup_info(data, destination):
+    dest = pathlib.Path(destination)
+    if not dest.parent.exists():
+        logger.warning(
+            "%s does not exists. skip creating backup info for exporter.",
+            str(dest.parent),
+        )
+        return
+    with open(destination, "w") as fp:
+        json.dump(data, fp)
 
 
 class AutoJujuBackupAll:
@@ -149,12 +222,15 @@ class AutoJujuBackupAll:
 
         PID_FILENAME.write_text(pid)
 
+        stime = time.time()
+        purge_count = 0
         try:
             backup_results = self.perform_backup(omit_models=args.omit_models)
             Paths.AUTO_BACKUP_RESULTS_PATH.write_text(backup_results)
 
             # purge old backups if requested
             if args.purge_after_days and args.purge_after_days > 0:
+                purge_count += 1
                 self.purge_old_backups(args.purge_after_days)
         except Exception:
             backup_results = {"ERROR": traceback.format_exc()}
@@ -164,6 +240,25 @@ class AutoJujuBackupAll:
             raise
         finally:
             PID_FILENAME.unlink()
+            duration = time.time() - stime
+            result_code = check_backup_file(Paths.AUTO_BACKUP_RESULTS_PATH)
+            status_ok = float(result_code == 0)
+            backup_stats = {
+                "duration": duration,
+                "status_ok": status_ok,
+                "result_code": result_code,
+            }
+            backup_state = {
+                "completed": status_ok,
+                "failed": float(not status_ok),
+                "purged": purge_count,
+            }
+            write_backup_info(
+                backup_stats, Paths.EXPORTER_BACKUP_RESULTS_PATH / "backup_stats.json"
+            )
+            write_backup_info(
+                backup_state, Paths.EXPORTER_BACKUP_RESULTS_PATH / "backup_state.json"
+            )
 
     def configure_logging(self, log_level):
         """Configure logging for the backup script."""

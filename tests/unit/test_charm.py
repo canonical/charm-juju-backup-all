@@ -12,6 +12,7 @@ from ops.testing import Harness
 
 from charm import JujuBackupAllCharm
 from config import BACKUP_USERNAME, Paths
+from exporter import Exporter
 from tests.fixtures import ACCOUNTS_YAML, CONTROLLERS_YAML
 
 
@@ -100,12 +101,14 @@ class TestCharm(unittest.TestCase):
         )
         self.assertTrue(self.harness.charm._stored.installed)
 
+    @mock.patch.multiple(Exporter, install_or_refresh=Mock(), configure=Mock())
     def test_09_config_changed_defer(self):
         """Test: config changed event is deferred if charm not installed."""
         self.harness.begin()
         self.harness.charm.on.config_changed.emit()
         self.assertEqual(self._get_notice_count("config_changed"), 1)
 
+    @mock.patch.multiple(Exporter, install_or_refresh=Mock(), configure=Mock())
     def test_10_config_changed_blocked(self):
         """Test: config changed event is deferred if charm not installed."""
         self.harness.begin()
@@ -118,6 +121,7 @@ class TestCharm(unittest.TestCase):
             "Waiting for controllers/accounts configuration",
         )
 
+    @mock.patch.multiple(Exporter, install_or_refresh=Mock(), configure=Mock())
     def test_12_config_changed_invalid_config(self):
         """Test: config changed event with invalid config."""
         self.harness.begin()
@@ -131,6 +135,7 @@ class TestCharm(unittest.TestCase):
             "Invalid controllers/accounts configuration",
         )
 
+    @mock.patch.multiple(Exporter, install_or_refresh=Mock(), configure=Mock())
     @mock.patch("charmhelpers.core.host.chownr")
     def test_14_config_changed_valid_config(self, mock_chownr):
         """Test: config changed event with invalid config."""
