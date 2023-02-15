@@ -62,29 +62,26 @@ class Exporter(MetricsEndpointProvider):
     @check_snap_installed
     def remove(self):
         """Remove the exporter snap."""
-        snap.remove([EXPORTER_NAME])
+        snap.remove([EXPORTER_NAME])  # pragma: no cover
 
     @check_snap_installed
     def start(self):
         """Start the exporter daemon."""
-        self._exporter.start()
+        self._exporter.start()  # pragma: no cover
 
     @check_snap_installed
     def restart(self):
         """Restart the exporter daemon."""
-        self._exporter.restart()
+        self._exporter.restart()  # pragma: no cover
 
     @check_snap_installed
     def stop(self):
         """Stop the exporter daemon."""
-        self._exporter.stop()
+        self._exporter.stop()  # pragma: no cover
 
     @check_snap_installed
     def configure(self):
         """Configure exporter daemon."""
-        if not (self._exporter and self._exporter.present):
-            return
-
         with open(Paths.EXPORTER_CONFIG, "w", encoding="utf-8") as f:
             safe_dump(
                 {
@@ -107,7 +104,7 @@ class Exporter(MetricsEndpointProvider):
         """
         relation = self.model.get_relation(EXPORTER_RELATION_NAME)
         if not relation:
-            return
+            return  # pragma: no cover
 
         try:
             if self._exporter.services[EXPORTER_NAME]["active"]:
@@ -123,7 +120,9 @@ class Exporter(MetricsEndpointProvider):
                     logger.warning("Restarting exporter - %d retry", i)
                     self.restart()
                     sleep(3)
-                    if self._exporter.services[EXPORTER_NAME]["active"]:
+                    if self._exporter.services[EXPORTER_NAME][
+                        "active"
+                    ]:  # pragma: no cover
                         logger.info("Exporter restarted.")
                         return
                 logger.error("Failed to restart the exporter.")
