@@ -1,0 +1,9 @@
+alert: JujubackupallBackupNotOkay
+expr: juju_backup_all_command_ok_info == 0
+for: 0m
+labels:
+  severity: critical
+annotations:
+  summary: Juju backup all auto backup not okay. (unit {{ $labels.juju_unit }})
+  description: |
+    The auto backup command was not successful or had not started yet. (result code: {{ $labels.result_code }})
