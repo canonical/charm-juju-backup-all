@@ -19,26 +19,17 @@ parts:
     charm-binary-python-packages: [paramiko]
     charm-python-packages: [setuptools < 58]
     prime: ["scripts"]
-# Note(sudeephb): The charm is built on 20.04 and not 22.04
-# because the one built on 22.04 fails to install on 18.04 because
-# the following line generated in the charm by 22.04 is not supported
-# by python 3.6, which is the default python version in 18.04:
-# from __future__ import annotations
 bases:
   - build-on:
     - name: ubuntu
-      channel: "20.04"
+      channel: "22.04"
       architectures: ["amd64"]
     run-on:
-    - name: ubuntu
+    - name: "ubuntu"
       channel: "22.04"
       architectures:
       - amd64
     - name: "ubuntu"
       channel: "20.04"
-      architectures:
-      - amd64
-    - name: "ubuntu"
-      channel: "18.04"
       architectures:
       - amd64

@@ -4,13 +4,11 @@ tests:
 gate_bundles:
   - jammy
   - focal
-  - bionic
 dev_bundles:
   - jammy
   - focal
-  - bionic
 smoke_bundles:
-  - bionic
+  - focal
 target_deploy_status:
   juju-backup-all:
     workload-status: "blocked"

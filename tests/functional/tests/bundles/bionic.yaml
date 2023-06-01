@@ -1,4 +1,0 @@
-series: bionic
-applications:
-  juju-backup-all:
-    num_units: 1
