@@ -1,6 +1,5 @@
-git+https://git.launchpad.net/juju-backup-all@75350186548d6bbc664d9c77c62ac5b68750df90#egg=juju-backup-all
+git+https://git.launchpad.net/juju-backup-all@5da73db4257ae7bec3935abdb856913363505982#egg=juju-backup-all
 charmhelpers >= 0.20.23
 jinja2 < 3
-# Package "ops > 2" is incompatible with deployment on bionic series
-ops >= 1.2.0,< 2
+ops >= 1.2.0
 typing-extensions <4.2
