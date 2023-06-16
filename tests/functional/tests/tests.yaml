@@ -1,4 +1,8 @@
 charm_name: juju-backup-all
+
+configure:
+  - tests.configure.set_configuration
+
 tests:
  - tests.test_backups.JujuBackupAllTests
 gate_bundles:
@@ -13,3 +17,13 @@ target_deploy_status:
   juju-backup-all:
     workload-status: "blocked"
     workload-status-message-prefix: "Waiting for controllers/accounts configuration"
+  postgresql:
+    workload-status: "active"
+    workload-status-message-prefix: "Primary"
+  etcd:
+    workload-status: "active"
+    workload-status-message-prefix: "Healthy with 1 known peer"
+  easyrsa:
+    workload-status: "active"
+    workload-status-message-prefix: "Certificate Authority connected."
+

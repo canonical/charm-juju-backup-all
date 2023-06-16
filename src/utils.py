@@ -1,5 +1,6 @@
 # Copyright 2021 Canonical Ltd.
 # See LICENSE file for licensing details.
+import asyncio
 import base64
 import hashlib
 import logging
@@ -13,7 +14,6 @@ import yaml
 from charmhelpers.contrib.charmsupport.nrpe import NRPE
 from charmhelpers.core import hookenv, host
 from charmhelpers.core.host import rsync
-from juju.loop import run as run_async
 from jujubackupall.config import Config
 from jujubackupall.process import BackupProcessor
 from jujubackupall.utils import connect_controller, connect_model
@@ -25,6 +25,11 @@ from config import BACKUP_USERNAME, Paths
 # configure libjuju to the location of the credentials
 if "JUJUDATA_DIR" not in os.environ:
     os.environ["JUJU_DATA"] = str(Paths.JUJUDATA_DIR)
+
+
+def run_async(func):
+    loop = asyncio.get_event_loop()
+    return loop.run_until_complete(func)
 
 
 class JujuBackupAllHelper:

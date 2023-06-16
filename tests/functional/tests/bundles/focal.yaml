@@ -1,4 +1,1 @@
-series: focal
-applications:
-  juju-backup-all:
-    num_units: 1
+base.yaml
