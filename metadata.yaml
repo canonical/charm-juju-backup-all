@@ -6,6 +6,7 @@
 name: juju-backup-all
 display-name: juju-backup-all
 summary: A charm to backup Juju config and databases
+docs: https://discourse.charmhub.io/t/juju-backup-all-docs-index/11321
 description: |
   This charm leverges Juju-backup-all to allow operators to perform backups
   across all controllers and models. It provides autodiscovery, backing up all
