@@ -60,7 +60,7 @@ class JujuBackupAllTests(unittest.TestCase):
         config_bkp_path = result["config_backups"][0].get("download_path")
         app_backups_list = result["app_backups"]
         app_names = set()
-        expected_app_names = {"postgresql", "mysql", "percona-cluster", "etcd"}
+        expected_app_names = {"postgresql", "mysql", "etcd"}
         db_bkp_paths = []
 
         # each app is a dictionary in the list
