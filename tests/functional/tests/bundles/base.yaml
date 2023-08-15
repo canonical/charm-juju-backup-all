@@ -7,9 +7,6 @@ applications:
   mysql:
     charm: mysql-innodb-cluster
     num_units: 3
-  percona-cluster:
-    charm: percona-cluster
-    num_units: 1
   etcd:
     charm: etcd
     num_units: 1
