@@ -3,6 +3,7 @@ applications:
     num_units: 1
   postgresql:
     charm: postgresql
+    channel: 14/stable
     num_units: 1
   mysql:
     charm: mysql-innodb-cluster
