@@ -224,7 +224,7 @@ class JujuBackupAllHelper:
             content = self.charm_config[yaml_field]
             try:
                 content_dict = yaml.safe_load(content)
-                assert type(content_dict) == dict
+                assert isinstance(content_dict, dict)
                 assert "controllers" in content_dict
                 logging.debug("config for '{}' is valid".format(yaml_field))
             except (ParserError, AssertionError):
