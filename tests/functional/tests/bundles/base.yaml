@@ -4,6 +4,8 @@ applications:
   postgresql:
     charm: postgresql
     channel: 14/stable
+    # 14/stable is only available on jammy
+    series: jammy
     num_units: 1
   mysql:
     charm: mysql-innodb-cluster
