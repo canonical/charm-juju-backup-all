@@ -1,0 +1,25 @@
+# This is a template `release.yaml` file for ops charms
+# This file is managed by bootstack-charms-spec and should not be modified
+# within individual charm repos. https://launchpad.net/bootstack-charms-spec
+
+name: Release to Edge
+
+on:
+  push:
+    branches: [master, main]
+
+concurrency:
+  group: release
+  cancel-in-progress: true
+
+jobs:
+  check:
+    uses: ./.github/workflows/check.yaml
+
+  release:
+    needs: check
+    uses: canonical/bootstack-actions/.github/workflows/charm-release.yaml@v2
+    secrets: inherit
+    with:
+      channel: "latest/edge"
+      upload-image: false
