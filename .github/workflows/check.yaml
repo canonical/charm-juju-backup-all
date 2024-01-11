@@ -25,13 +25,9 @@ jobs:
     needs: lint-unit
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - juju-channel: "3.1/stable"
-            command: "make functional"
     with:
-      command: ${{ matrix.command }}
-      juju-channel: ${{ matrix.juju-channel }}
+      command: "make functional"
+      juju-channel: "3.1/stable"
       nested-containers: false
       provider: "lxd"
       python-version: "3.10"
