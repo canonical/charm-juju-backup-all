@@ -1,22 +1,11 @@
 # Learn more about charmcraft.yaml configuration at:
 # https://juju.is/docs/sdk/charmcraft-config
 type: "charm"
-# Note(sudeephb): Dependencies `git` and `paramiko` are required by juju.
-# We are using prebuilt binray wheel of the paramiko package.
-# The reason for this is that if we let it build from source when building the
-# charm, it causes platform dependence for compiled components of libraries like
-# cryptography, which is a dependency of paramiko. Consequently, a charm built on
-# focal fails to run on jammy and vice versa.
-# Care should be taken while specifying binary wheels so as not to use incompatible builds. 
-# According to the compatibility table:
-# https://github.com/mayeut/pep600_compliance/blob/master/DETAILS.rst,
-# manylinux_2_28 is compatible with 18.10+
-# manylinux_2_24 is compatible with 16.10+
-# manylinux_2014 is compatible with 12.04+
+# Note(sudeephb): There are two bases in this file. This is because the charm built
+# in focal doesn't work in jammy and vice versa.
 parts:
   charm:
     build-packages: [git]
-    charm-binary-python-packages: [paramiko]
     charm-python-packages: [setuptools < 58]
     prime: ["scripts"]
 bases:
