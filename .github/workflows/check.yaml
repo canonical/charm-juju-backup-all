@@ -27,6 +27,7 @@ jobs:
       fail-fast: false
     with:
       command: "make functional"
+      runs-on: "['self-hosted', 'xlarge']"
       juju-channel: "3.1/stable"
       nested-containers: false
       provider: "lxd"
