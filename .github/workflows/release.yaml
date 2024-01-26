@@ -18,8 +18,9 @@ jobs:
 
   release:
     needs: check
-    uses: canonical/bootstack-actions/.github/workflows/charm-release.yaml@v2
+    uses: canonical/bootstack-actions/.github/workflows/charm-release.yaml@v3
     secrets: inherit
     with:
       channel: "latest/edge"
       upload-image: false
+      destructive-mode: false
