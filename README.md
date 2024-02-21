@@ -13,7 +13,7 @@ alerts on any issues when performing backups.
 
 Deploy this charm with:
 ```sh
-juju deploy bootstack-charmers-juju-backup-all
+juju deploy juju-backup-all
 ```
 
 The following Juju connection config values **must** be set to allow libjuju to
