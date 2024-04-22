@@ -23,7 +23,6 @@ jobs:
         python-version: ["3.8", "3.10"]
     with:
       python-version: ${{ matrix.python-version }}
-      tox-version: "<4"
 
   func:
     uses: canonical/bootstack-actions/.github/workflows/func.yaml@v3
