@@ -1,5 +1,6 @@
 applications:
   juju-backup-all:
+    charm: juju-backup-all
     num_units: 1
   postgresql:
     charm: postgresql
