@@ -25,7 +25,7 @@ jobs:
       python-version: ${{ matrix.python-version }}
 
   func:
-    uses: canonical/bootstack-actions/.github/workflows/func.yaml@v3
+    uses: canonical/bootstack-actions/.github/workflows/func.yaml@v2
     needs: lint-unit
     strategy:
       fail-fast: false
