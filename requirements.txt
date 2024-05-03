@@ -1,6 +1,4 @@
 git+https://git.launchpad.net/juju-backup-all@23.10#egg=juju-backup-all
 charmhelpers >= 0.20.23
-markupsafe
-jinja2
 ops >= 1.2.0
 typing-extensions <4.2
