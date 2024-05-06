@@ -31,6 +31,7 @@ jobs:
       fail-fast: false
     with:
       command: "TEST_JUJU3=1 make functional"  # using TEST_JUJU3 due https://github.com/openstack-charmers/zaza/commit/af7eea953dd5d74d3d074fe67b5765dca3911ca6
+      runs-on: "['self-hosted', 'linux', 'x64', 'large', 'jammy']"
       juju-channel: "3.4/stable"
       nested-containers: false
       provider: "lxd"
