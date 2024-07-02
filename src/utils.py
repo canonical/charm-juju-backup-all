@@ -248,6 +248,7 @@ class JujuBackupAllHelper:
             "log_level": "INFO",
             "output_dir": self.charm_config["backup-dir"],
             "timeout": self.charm_config["timeout"],
+            "app_backup_basedir": self.charm_config["backup-basedir"],
         }
 
     def _update_dir_owner(self, path):

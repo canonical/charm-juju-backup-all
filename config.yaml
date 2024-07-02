@@ -92,3 +92,14 @@ options:
     type: int
     default: 10000
     description: Start the exporter at "exporter-port".
+  backup-basedir:
+    type: string
+    default: "/opt/backups"
+    description: |
+      The directory to be used by the charms (not charm-juju-backup-all) to
+      save the backups. The "backup-basedir" will be created if it does not
+      exist. This config option is useful to workaround the issue that the disk
+      on the charm is full, or the default backup path is not writable.
+
+      Please do not be confused with "backup-dir" option which specify the
+      output directory of the backups for charm-juju-backup-all.
