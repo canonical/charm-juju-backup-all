@@ -248,7 +248,11 @@ class JujuBackupAllHelper:
             "log_level": "INFO",
             "output_dir": self.charm_config["backup-dir"],
             "timeout": self.charm_config["timeout"],
-            "app_backup_basedir": self.charm_config["backup-basedir"],
+            "backup_location_on_postgresql": self.charm_config[
+                "backup-location-on-postgresql"
+            ],
+            "backup_location_on_mysql": self.charm_config["backup-location-on-mysql"],
+            "backup_location_on_etcd": self.charm_config["backup-location-on-etcd"],
         }
 
     def _update_dir_owner(self, path):
