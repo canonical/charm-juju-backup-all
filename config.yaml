@@ -92,3 +92,36 @@ options:
     type: int
     default: 10000
     description: Start the exporter at "exporter-port".
+  backup-location-on-postgresql:
+    type: string
+    default: "/home/ubuntu"
+    description: |
+      The directory to be used by the postgresql charm to save the backups. The
+      "backup-location-on-postgresql" will be created if it does not exist.
+      This config option is useful to workaround the issue that the disk on the
+      charm is full, or the default backup path is not writable.
+
+      Please do not be confused with "backup-dir" option which specify the
+      output directory of the backups for charm-juju-backup-all.
+  backup-location-on-mysql:
+    type: string
+    default: "/var/backups/mysql"
+    description: |
+      The directory to be used by the postgresql charm to save the backups. The
+      "backup-location-on-mysql" will be created if it does not exist.
+      This config option is useful to workaround the issue that the disk on the
+      charm is full, or the default backup path is not writable.
+
+      Please do not be confused with "backup-dir" option which specify the
+      output directory of the backups for charm-juju-backup-all.
+  backup-location-on-etcd:
+    type: string
+    default: "/home/ubuntu/etcd-snapshots"
+    description: |
+      The directory to be used by the postgresql charm to save the backups. The
+      "backup-location-on-etcd" will be created if it does not exist.
+      This config option is useful to workaround the issue that the disk on the
+      charm is full, or the default backup path is not writable.
+
+      Please do not be confused with "backup-dir" option which specify the
+      output directory of the backups for charm-juju-backup-all.
