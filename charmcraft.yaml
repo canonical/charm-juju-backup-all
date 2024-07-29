@@ -5,8 +5,13 @@ type: "charm"
 # in focal doesn't work in jammy and vice versa.
 parts:
   charm:
-    build-packages: [git]
-    charm-python-packages: [setuptools < 58]
+    build-packages:
+      - cargo
+      - git
+      - libffi-dev
+      - libssl-dev
+      - pkg-config
+      - rustc
     prime: ["scripts"]
 bases:
   - build-on:
