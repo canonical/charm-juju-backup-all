@@ -5,6 +5,8 @@ type: "charm"
 # in focal doesn't work in jammy and vice versa.
 parts:
   charm:
+    plugin: charm
+    source: .
     build-packages:
       - cargo
       - git
@@ -12,7 +14,11 @@ parts:
       - libssl-dev
       - pkg-config
       - rustc
-    prime: ["scripts"]
+  scripts:
+    plugin: dump
+    source: .
+    prime:
+      - scripts
 bases:
   - build-on:
     - name: ubuntu
