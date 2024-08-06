@@ -7,13 +7,12 @@ parts:
   charm:
     plugin: charm
     source: .
+    charm-binary-python-packages:
+      # use a binary distribution rather than build from public source code,
+      # and it reduces a bunch of unnecessary build dependencies
+      - juju
     build-packages:
-      - cargo
       - git
-      - libffi-dev
-      - libssl-dev
-      - pkg-config
-      - rustc
   scripts:
     plugin: dump
     source: .
