@@ -13,9 +13,6 @@ parts:
       - juju
     build-packages:
       - git
-  scripts:
-    plugin: dump
-    source: .
     prime:
       - scripts
 bases:
