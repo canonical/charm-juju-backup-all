@@ -5,9 +5,16 @@ type: "charm"
 # in focal doesn't work in jammy and vice versa.
 parts:
   charm:
-    build-packages: [git]
-    charm-python-packages: [setuptools < 58]
-    prime: ["scripts"]
+    plugin: charm
+    source: .
+    charm-binary-python-packages:
+      # use a binary distribution rather than build from public source code,
+      # and it reduces a bunch of unnecessary build dependencies
+      - juju
+    build-packages:
+      - git
+    prime:
+      - scripts
 bases:
   - build-on:
     - name: ubuntu
