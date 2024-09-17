@@ -57,8 +57,15 @@ jobs:
         run: |
           juju version
           juju controllers | grep Version -A 1 | awk '{print $9}'
+      - name: Build the charm
+        run: charmcraft -v pack
       - name: Run tests
-        run: "make functional"
+        run: |
+          export JAMMY_CHARM_PATH="$(pwd)/$(ls | grep '.*22.04.*\.charm$')"
+          echo "$JAMMY_CHARM_PATH"
+          export FOCAL_CHARM_PATH="$(pwd)/$(ls | grep '.*20.04.*\.charm$')"
+          echo "$FOCAL_CHARM_PATH"
+          tox -e func
         env:
           TEST_JUJU3: "1"  # https://github.com/openstack-charmers/zaza/pull/653
           TEST_MODEL_CONSTRAINTS: ${{ matrix.architecture.model-constraints }}
