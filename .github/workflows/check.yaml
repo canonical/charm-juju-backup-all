@@ -61,10 +61,10 @@ jobs:
         run: charmcraft -v pack
       - name: Run tests
         run: |
-          export JAMMY_CHARM_PATH="$(pwd)/$(ls | grep '.*22.04.*\.charm$')"
-          echo "$JAMMY_CHARM_PATH"
-          export FOCAL_CHARM_PATH="$(pwd)/$(ls | grep '.*20.04.*\.charm$')"
-          echo "$FOCAL_CHARM_PATH"
+          export CHARM_PATH_JAMMY="$(pwd)/$(ls | grep '.*22.04.*\.charm$')"
+          echo "$CHARM_PATH_JAMMY"
+          export CHARM_PATH_FOCAL="$(pwd)/$(ls | grep '.*20.04.*\.charm$')"
+          echo "$CHARM_PATH_FOCAL"
           tox -e func
         env:
           TEST_JUJU3: "1"  # https://github.com/openstack-charmers/zaza/pull/653
