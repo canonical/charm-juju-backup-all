@@ -1,3 +1,8 @@
+# This file is centrally managed as a template file in https://github.com/canonical/solutions-engineering-automation
+# To update the file:
+# - Edit it in the canonical/solutions-engineering-automation repository.
+# - Open a PR with the changes.
+# - When the PR merges, the soleng-terraform bot will open a PR to the target repositories with the changes.
 name: Release to Edge
 
 on:
@@ -13,18 +18,26 @@ jobs:
 
   release:
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [[ubuntu-22.04]]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
+
       - name: Initialize lxd  # This should dropped once it's implemented on charming-actions itself. https://github.com/canonical/charming-actions/issues/140
-        uses: canonical/setup-lxd@v0.1.1
-      - name: Upload charm to charmhub
+        # revision is latest main at time of writing; using because it contains a fix to https://github.com/canonical/setup-lxd/issues/19
+        uses: canonical/setup-lxd@2aa6f7caf7d1484298a64192f7f63a6684e648a4
+
+      - name: Pack and upload to charmhub
         uses: canonical/charming-actions/upload-charm@2.6.2
         with:
+          charmcraft-channel: "2.x/stable"
           credentials: "${{ secrets.CHARMHUB_TOKEN }}"
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-          channel: "latest/edge"
-          charmcraft-channel: "2.x/stable"
-          # Note(rgildein): Right now we are not using destructive-mode, since our charmcraft.yaml is designed with a single build-on and the ability to run-on multiple bases. Running with destructive-mode would require aligning the base defined in this job with the one defined in charmcraft.yaml (build-on).
+          # Ensure the charm is built in an isolated environment and on the correct base in an lxd container.
           destructive-mode: false
