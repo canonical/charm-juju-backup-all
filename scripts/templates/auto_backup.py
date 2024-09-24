@@ -33,9 +33,9 @@ import yaml
 
 # The path below is templated in during charm install this is required to load
 # the charm code and dependencies from this script.
-sys.path.append("REPLACE_CHARMDIR/lib")
-sys.path.append("REPLACE_CHARMDIR/src")
-sys.path.append("REPLACE_CHARMDIR/venv")
+sys.path.insert(0, "REPLACE_CHARMDIR/venv")
+sys.path.insert(0, "REPLACE_CHARMDIR/src")
+sys.path.insert(0, "REPLACE_CHARMDIR/lib")
 
 from jujubackupall import globals  # noqa E402
 from jujubackupall.config import Config  # noqa E402
