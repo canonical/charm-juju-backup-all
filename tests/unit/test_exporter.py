@@ -15,32 +15,6 @@ from exporter import Exporter
 ops.testing.SIMULATE_CAN_CONNECT = True
 
 
-def patch_network_get():
-    def network_get(*args, **kwargs):
-        """Patch for the not-yet-implemented testing backend needed for `bind_address`.
-
-        This patch decorator can be used for cases such as:
-        self.model.get_binding(event.relation).network.bind_address
-        """
-        return {
-            "bind-addresses": [
-                {
-                    "mac-address": "",
-                    "interface-name": "",
-                    "addresses": [
-                        {"hostname": "", "value": "255.255.255.255", "cidr": ""}
-                    ],
-                }
-            ],
-            "egress-subnets": ["255.255.255.255/32"],
-            "ingress-addresses": ["255.255.255.255"],
-        }
-
-    return mock.patch(
-        "ops._private.harness._TestingModelBackend.network_get", network_get
-    )
-
-
 def patch_snap_installed():
     mock_snap = mock.Mock()
     mock_snap.present = True
@@ -82,9 +56,6 @@ class TestExporter(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up class fixture."""
-        # patch network_get in prometheus_scrape lib
-        cls.network_get_patcher = patch_network_get()
-        cls.network_get_patcher.start()
         # patch builtins open
         cls.open_patcher = mock.patch("builtins.open", new_callable=mock.mock_open)
         cls.open_patcher.start()
@@ -101,7 +72,6 @@ class TestExporter(unittest.TestCase):
         """Tear down class fixture."""
         cls.open_patcher.stop()
         cls.charm_dir_patcher.stop()
-        cls.network_get_patcher.stop()
         cls.nrpe_support_patcher.stop()
 
     def setUp(self):
