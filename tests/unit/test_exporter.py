@@ -36,7 +36,9 @@ def patch_network_get():
             "ingress-addresses": ["255.255.255.255"],
         }
 
-    return mock.patch("ops.testing._TestingModelBackend.network_get", network_get)
+    return mock.patch(
+        "ops._private.harness._TestingModelBackend.network_get", network_get
+    )
 
 
 def patch_snap_installed():
