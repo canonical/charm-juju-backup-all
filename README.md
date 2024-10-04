@@ -2,9 +2,10 @@
 
 ## Description
 
-Juju Backup All - a charm to perform Juju and database backups
+[Juju Backup All](https://charmhub.io/juju-backup-all) - a charm to perform Juju
+and database backups
 
-This charm deploys [juju-backup-all](https://launchpad.net/juju-backup-all),
+This charm deploys [juju-backup-all](https://github.com/canonical/juju-backup-all),
 along with a script to automate its execution, `auto_backup.py`. In addition,
 a crontab is deployed to run `auto_backup.py`, as well as a Nagios check which
 alerts on any issues when performing backups.
@@ -27,7 +28,7 @@ backup files) on all the model defined:
   `~/.local/share/juju/controllers.yaml`)
 * accounts - YAML defining the configuration for juju accounts, same syntax as
   used by the juju client configuration (usually located at
-  ~/.local/share/juju/accounts.yaml)
+  `~/.local/share/juju/accounts.yaml`)
 
 The following options are available:
 
@@ -62,5 +63,5 @@ on enhancements to this charm following best practice guidelines, and
 
 ## juju-backup-all (upstream)
 
-* Website: https://launchpad.net/juju-backup-all
-* Bug tracker: https://bugs.launchpad.net/juju-backup-all
+* Source: https://github.com/canonical/juju-backup-all
+* Bug tracker: https://github.com/canonical/juju-backup-all/issues
