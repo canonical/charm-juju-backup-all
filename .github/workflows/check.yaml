@@ -84,7 +84,7 @@ jobs:
       matrix:
         runs-on: [[self-hosted, linux, x64, large, jammy]]
         test-command: ['tox -e func']
-        juju-channel: ["3.4/stable"]
+        juju-channel: ['3.4/stable']]
     steps:
 
       - uses: actions/checkout@v4
