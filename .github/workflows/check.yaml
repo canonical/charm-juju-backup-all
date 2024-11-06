@@ -84,7 +84,7 @@ jobs:
       matrix:
         runs-on: [[self-hosted, linux, x64, large, jammy]]
         test-command: ['tox -e func']
-        juju-channel: ["3.4/stable"]
+        juju-channel: ["2.9/stable"]
     steps:
 
       - uses: actions/checkout@v4
@@ -133,7 +133,6 @@ jobs:
           echo "$CHARM_PATH_FOCAL"
           ${{ matrix.test-command }}
         env:
-          TEST_JUJU3: "1"  # https://github.com/openstack-charmers/zaza/pull/653
           TEST_JUJU_CHANNEL: ${{ matrix.juju-channel }}
 
       # Save output for debugging
