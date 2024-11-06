@@ -41,3 +41,4 @@ jobs:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
           # Ensure the charm is built in an isolated environment and on the correct base in an lxd container.
           destructive-mode: false
+          channel: latest/edge/2.9
