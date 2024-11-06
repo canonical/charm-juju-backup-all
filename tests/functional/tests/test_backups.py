@@ -48,7 +48,7 @@ class JujuBackupAllTests(unittest.TestCase):
     def test_02_do_backup_action(self):
         """Test: do-backup action performed successfully."""
         action = model.run_action_on_leader(self.app_name, "do-backup")
-        assert action.data["results"].get("return-code") == 0, "Backup action failed."
+        assert action.data["results"].get("Code") == "0", "Backup action failed."
 
         result_str = action.data["results"].get("result")
         assert result_str is not None, "Action returned None!"
