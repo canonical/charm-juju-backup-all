@@ -72,10 +72,21 @@ def check_backup_file(backup_results_file):
     try:
         with open(backup_results_file, "r") as f:
             backup_results = json.load(f)
+            # "ERROR" will contain a traceback if something crashed during the backups.
+            # See scripts/templates/auto_backup.py::AutoJujuBackupAll.run()
             if "ERROR" in backup_results:
                 logger.error(
                     "Detected error when performing backup: '%s'",
                     backup_results["ERROR"],
+                )
+                return 2
+
+            # This entry is populated by the jujubackupall backup process,
+            # and indicates which backups failed. Some backups may have succeeded.
+            if "errors" in backup_results:
+                logger.error(
+                    "Detected error when performing backup: '%s'",
+                    backup_results["errors"],
                 )
                 return 2
 

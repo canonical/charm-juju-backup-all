@@ -25,6 +25,7 @@ import pathlib
 import sys
 from os.path import isfile
 from time import time
+from typing import Any
 
 JUJUDATA_DIR = pathlib.Path("/var/lib/jujubackupall")
 AUTO_BACKUP_RESULTS_PATH = JUJUDATA_DIR / "auto_backup_results.json"
@@ -108,10 +109,19 @@ def main():
     # * the download_path musth be valid
     try:
         backup_results = json.loads(raw_backup_results)
+        # "ERROR" will contain a traceback if something crashed during the backups.
+        # See scripts/templates/auto_backup.py::AutoJujuBackupAll.run()
         if "ERROR" in backup_results:
             msg = "Detected error when performing backup: '{}'".format(
                 backup_results["ERROR"]
             )
+            nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
+
+        # This entry is populated by the jujubackupall backup process,
+        # and indicates which backups failed. Some backups may have succeeded.
+        if "errors" in backup_results:
+            errors: list[dict[str, Any]] = backup_results["errors"]
+            msg = "Detected error when performing backup: '{}'".format(errors)
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
         for backup_type, backup_entries in backup_results.items():
