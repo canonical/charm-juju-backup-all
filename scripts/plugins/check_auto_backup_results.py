@@ -25,7 +25,6 @@ import pathlib
 import sys
 from os.path import isfile
 from time import time
-from typing import Any
 
 JUJUDATA_DIR = pathlib.Path("/var/lib/jujubackupall")
 AUTO_BACKUP_RESULTS_PATH = JUJUDATA_DIR / "auto_backup_results.json"
@@ -117,10 +116,15 @@ def main():
             )
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
-        # This entry is populated by the jujubackupall backup process,
-        # and indicates which backups failed. Some backups may have succeeded.
+        # This entry is populated by the jujubackupall backup process
+        # (see `BackupTracker.add_error`),
+        # and indicates which backups failed.
+        # Some backups may have succeeded, but any backup failure
+        # should be considered a critical error,
+        # because silent failed backups
+        # can result in inability to recover from data loss events.
         if "errors" in backup_results:
-            errors: list[dict[str, Any]] = backup_results["errors"]
+            errors: list[dict[str, str]] = backup_results["errors"]
             msg = "Detected error when performing backup: '{}'".format(errors)
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 

@@ -81,8 +81,13 @@ def check_backup_file(backup_results_file):
                 )
                 return 2
 
-            # This entry is populated by the jujubackupall backup process,
-            # and indicates which backups failed. Some backups may have succeeded.
+            # This entry is populated by the jujubackupall backup process
+            # (see `BackupTracker.add_error`),
+            # and indicates which backups failed.
+            # Some backups may have succeeded, but any backup failure
+            # should be considered a critical error,
+            # because silent failed backups
+            # can result in inability to recover from data loss events.
             if "errors" in backup_results:
                 logger.error(
                     "Detected error when performing backup: '%s'",
