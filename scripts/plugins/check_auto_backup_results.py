@@ -117,7 +117,7 @@ def main():
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
         # This entry is populated by the jujubackupall backup process
-        # (see `BackupTracker.add_error`),
+        # (see `BackupTracker.add_error` in jujubackupall),
         # and indicates which backups failed.
         # Some backups may have succeeded, but any backup failure
         # should be considered a critical error,
