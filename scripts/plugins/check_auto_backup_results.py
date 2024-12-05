@@ -108,10 +108,24 @@ def main():
     # * the download_path musth be valid
     try:
         backup_results = json.loads(raw_backup_results)
+        # "ERROR" will contain a traceback if something crashed during the backups.
+        # See scripts/templates/auto_backup.py::AutoJujuBackupAll.run()
         if "ERROR" in backup_results:
             msg = "Detected error when performing backup: '{}'".format(
                 backup_results["ERROR"]
             )
+            nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
+
+        # This entry is populated by the jujubackupall backup process
+        # (see `BackupTracker.add_error` in jujubackupall),
+        # and indicates which backups failed.
+        # Some backups may have succeeded, but any backup failure
+        # should be considered a critical error,
+        # because silent failed backups
+        # can result in inability to recover from data loss events.
+        if "errors" in backup_results:
+            errors: list[dict[str, str]] = backup_results["errors"]
+            msg = "Detected error when performing backup: '{}'".format(errors)
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
         for backup_type, backup_entries in backup_results.items():
