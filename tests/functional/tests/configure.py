@@ -7,9 +7,7 @@ from juju.utils import juju_config_dir
 
 def get_controller_name(controllers_file_contents):
     """Obtain the current controller name from controllers.yaml."""
-    controller_name = re.findall(
-        r"current-controller:\s(.*)$", controllers_file_contents
-    )[0]
+    controller_name = re.findall(r"current-controller:\s(.*)$", controllers_file_contents)[0]
     logging.info(f"Current controller name: {controller_name}")
     return controller_name
 

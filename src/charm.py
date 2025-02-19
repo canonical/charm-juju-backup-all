@@ -30,9 +30,7 @@ class JujuBackupAllCharm(CharmBase):
         self.framework.observe(self.on.upgrade_charm, self._on_install_or_upgrade)
         self.framework.observe(self.on.config_changed, self._on_config_changed)
         self.framework.observe(self.on.do_backup_action, self._on_do_backup_action)
-        self.framework.observe(
-            self.on.push_ssh_keys_action, self._on_push_ssh_keys_action
-        )
+        self.framework.observe(self.on.push_ssh_keys_action, self._on_push_ssh_keys_action)
         self.framework.observe(
             self.on.nrpe_external_master_relation_changed,
             self._on_nem_changed,
@@ -70,9 +68,7 @@ class JujuBackupAllCharm(CharmBase):
         """
         if not self._snap_path_set:
             try:
-                self._snap_path = str(
-                    self.model.resources.fetch("exporter-snap").absolute()
-                )
+                self._snap_path = str(self.model.resources.fetch("exporter-snap").absolute())
                 # Don't return path to empty resource file
                 if not os.path.getsize(self._snap_path) > 0:
                     self._snap_path = None
@@ -143,9 +139,7 @@ class JujuBackupAllCharm(CharmBase):
 
         if not self.helper.validate_config():
             logging.warning("invalid controller connection config, blocking")
-            self.model.unit.status = BlockedStatus(
-                "Invalid controllers/accounts configuration"
-            )
+            self.model.unit.status = BlockedStatus("Invalid controllers/accounts configuration")
             return
 
         logger.debug("charm is installed, and the juju config is in place")

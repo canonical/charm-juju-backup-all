@@ -120,16 +120,12 @@ class Exporter(MetricsEndpointProvider):
                     logger.warning("Restarting exporter - %d retry", i)
                     self.restart()
                     sleep(3)
-                    if self._exporter.services[EXPORTER_NAME][
-                        "active"
-                    ]:  # pragma: no cover
+                    if self._exporter.services[EXPORTER_NAME]["active"]:  # pragma: no cover
                         logger.info("Exporter restarted.")
                         return
                 logger.error("Failed to restart the exporter.")
         except Exception as e:
-            logger.error(
-                "Unknown error when trying to check exporter health: %s", str(e)
-            )
+            logger.error("Unknown error when trying to check exporter health: %s", str(e))
 
     def on_config_changed(self, change_set):
         observe = set(["exporter-snap", "exporter-channel", "exporter-port"])
@@ -145,9 +141,7 @@ class Exporter(MetricsEndpointProvider):
                     {
                         "static_configs": [
                             {
-                                "targets": [
-                                    f"*:{self._stored.config['exporter-port']}"
-                                ],
+                                "targets": [f"*:{self._stored.config['exporter-port']}"],
                             }
                         ],
                     }

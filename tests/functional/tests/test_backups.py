@@ -22,9 +22,7 @@ class JujuBackupAllTests(unittest.TestCase):
         """Test: Installation completed successfully."""
         # check that the jujubackup user exists
         results = model.run_on_leader(self.app_name, "id {}".format(BACKUP_USERNAME))
-        assert results["Code"] == "0", "user '{}' does not exist".format(
-            BACKUP_USERNAME
-        )
+        assert results["Code"] == "0", "user '{}' does not exist".format(BACKUP_USERNAME)
 
         # check that the expected files/directories are in place
         expected_dirs = [

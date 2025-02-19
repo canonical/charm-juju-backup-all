@@ -70,17 +70,11 @@ class JujuBackupAllHelper:
 
         # Create the auto_backup.py script from the template with the right permissions
         logging.debug("templating and deploying the auto_backup.py script")
-        auto_backup_template = (
-            self.charm_dir / "scripts/templates/auto_backup.py"
-        ).read_text()
+        auto_backup_template = (self.charm_dir / "scripts/templates/auto_backup.py").read_text()
 
-        auto_backup_script = auto_backup_template.replace(
-            "REPLACE_CHARMDIR", str(self.charm_dir)
-        )
+        auto_backup_script = auto_backup_template.replace("REPLACE_CHARMDIR", str(self.charm_dir))
 
-        fd = os.open(
-            str(Paths.AUTO_BACKUP_SCRIPT_PATH), os.O_CREAT | os.O_WRONLY, 0o755
-        )
+        fd = os.open(str(Paths.AUTO_BACKUP_SCRIPT_PATH), os.O_CREAT | os.O_WRONLY, 0o755)
         with open(fd, "w") as f:
             f.write(auto_backup_script)
 
@@ -173,18 +167,14 @@ class JujuBackupAllHelper:
         )
 
         if self.charm_config["backup-retention-period"]:
-            cron_job += " --purge {}".format(
-                self.charm_config["backup-retention-period"]
-            )
+            cron_job += " --purge {}".format(self.charm_config["backup-retention-period"])
 
         if self.charm_config["timeout"]:
             cron_job += " --task-timeout {}".format(self.charm_config["timeout"])
 
         if self.charm_config["exclude-models"]:
             exclude_models = self.charm_config["exclude-models"].split(",")
-            omit_model_params = " ".join(
-                ["--omit-model {}".format(m) for m in exclude_models]
-            )
+            omit_model_params = " ".join(["--omit-model {}".format(m) for m in exclude_models])
             cron_job += " " + omit_model_params
 
         cron_job += " >> {} 2>&1\n".format(Paths.AUTO_BACKUP_LOG_PATH)
@@ -193,9 +183,7 @@ class JujuBackupAllHelper:
     def update_jujudata_config(self):
         """Update the config files in JUJU_DATA."""
         # first write the yaml files
-        (Paths.JUJUDATA_DIR / "controllers.yaml").write_text(
-            self.charm_config["controllers"]
-        )
+        (Paths.JUJUDATA_DIR / "controllers.yaml").write_text(self.charm_config["controllers"])
         (Paths.JUJUDATA_DIR / "accounts.yaml").write_text(self.charm_config["accounts"])
 
         # need to create a cookie file for each controller configured otherwise
@@ -205,12 +193,8 @@ class JujuBackupAllHelper:
         controllers_yaml = self.charm_config["controllers"]
         controller_names = yaml.safe_load(controllers_yaml)["controllers"].keys()
         for controller_name in controller_names:
-            logging.debug(
-                "writing cookie file for controller: '{}'".format(controller_name)
-            )
-            (Paths.JUJUDATA_COOKIES_DIR / "{}.json".format(controller_name)).write_text(
-                "null"
-            )
+            logging.debug("writing cookie file for controller: '{}'".format(controller_name))
+            (Paths.JUJUDATA_COOKIES_DIR / "{}.json".format(controller_name)).write_text("null")
 
         # save the charm config as yaml for the cronjob
         Paths.CONFIG_YAML.write_text(yaml.safe_dump(self._charm_config_to_datadict()))
@@ -248,9 +232,7 @@ class JujuBackupAllHelper:
             "log_level": "INFO",
             "output_dir": self.charm_config["backup-dir"],
             "timeout": self.charm_config["timeout"],
-            "backup_location_on_postgresql": self.charm_config[
-                "backup-location-on-postgresql"
-            ],
+            "backup_location_on_postgresql": self.charm_config["backup-location-on-postgresql"],
             "backup_location_on_mysql": self.charm_config["backup-location-on-mysql"],
             "backup_location_on_etcd": self.charm_config["backup-location-on-etcd"],
         }
@@ -289,17 +271,12 @@ class SSHKeyHelper:
                     model_names = run_async(controller.list_models())
                     for model_name in model_names:
                         try:
-                            logging.debug(
-                                "connecting to model: '{}'".format(model_name)
-                            )
+                            logging.debug("connecting to model: '{}'".format(model_name))
                             with connect_model(controller, model_name) as model:
                                 logging.debug("processing model: {}".format(model_name))
                                 # check if the fingerprint is present, if not add it
                                 username = self.accounts[controller_name]["user"]
-                                if (
-                                    fingerprint
-                                    not in self._get_model_ssh_key_fingeprints(model)
-                                ):
+                                if fingerprint not in self._get_model_ssh_key_fingeprints(model):
                                     logging.debug(
                                         "ssh key missing for user '{}',"
                                         "adding it".format(username)
@@ -332,9 +309,7 @@ class SSHKeyHelper:
             logging.error("Invalid ssh pubkey: {}".format(raw_pubkey))
             raise
 
-        logging.debug(
-            "processing key_comment='{}', key_body='{}'".format(key_comment, key_body)
-        )
+        logging.debug("processing key_comment='{}', key_body='{}'".format(key_comment, key_body))
         key = base64.b64decode(key_body)
         key_fp_plain = hashlib.md5(key).hexdigest()
         key_fp = ":".join(a + b for a, b in zip(key_fp_plain[::2], key_fp_plain[1::2]))

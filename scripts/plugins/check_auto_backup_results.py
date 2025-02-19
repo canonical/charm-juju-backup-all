@@ -111,9 +111,7 @@ def main():
         # "ERROR" will contain a traceback if something crashed during the backups.
         # See scripts/templates/auto_backup.py::AutoJujuBackupAll.run()
         if "ERROR" in backup_results:
-            msg = "Detected error when performing backup: '{}'".format(
-                backup_results["ERROR"]
-            )
+            msg = "Detected error when performing backup: '{}'".format(backup_results["ERROR"])
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
         # This entry is populated by the jujubackupall backup process
