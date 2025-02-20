@@ -43,7 +43,9 @@ MOCK_CONFIG = {
     "backup-location-on-etcd": "/home/ubuntu/etcd-snapshots",
 }
 
-SSH_FINGERPRINT = "a3:fe:56:ca:d8:e8:ea:04:f2:9a:fd:0f:bf:55:7c:17 (jujubackup@juju-deb4b2-tmp-7)"  # noqa E501
+SSH_FINGERPRINT = (
+    "a3:fe:56:ca:d8:e8:ea:04:f2:9a:fd:0f:bf:55:7c:17 (jujubackup@juju-deb4b2-tmp-7)"  # noqa E501
+)
 RAW_PUBKEY = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDWyOIKxjS6ev/Fn94ULqWFtEjXc9xk0SLR7CNXZI/21dBC2vkqD2rekR6DTeGplIuhpoCTjlW13r2V2LVbR56Ne4+n4BfSU8J+3EgOAck0t5T21anMN8Z6Bj5G1gSfWpvq1Yo1y2vkqbUEA3NECEaPI69hH/afEEBFiKy5z6jmybqdqT7Kmt15GzTiVyPtnZQsAhiSW+fX/mFSp3K3cDMgWN5h5hwmQEmldiDmd5G28rTmSeO1ycvjDPhemNGxFFREm7bkXA7BlxUsBgkOVCHrw88BfZ3oFgIY4arCFmH2HLwhQbBPGpA+0JFuQFQPEVgR+y+K8+NQcuGwdoFN41q1 jujubackup@juju-deb4b2-tmp-7"  # noqa E501
 
 

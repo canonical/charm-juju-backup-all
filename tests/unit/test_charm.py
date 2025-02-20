@@ -70,9 +70,7 @@ class TestCharm(unittest.TestCase):
         self.harness.charm.on.install.emit()
 
         mock_user_exists.assert_called_once()
-        mock_adduser.assert_called_once_with(
-            BACKUP_USERNAME, home_dir=Paths.JUJUDATA_DIR
-        )
+        mock_adduser.assert_called_once_with(BACKUP_USERNAME, home_dir=Paths.JUJUDATA_DIR)
         mock_chownr.assert_called_once()
 
         expected_dirs = [
@@ -160,12 +158,8 @@ class TestCharm(unittest.TestCase):
         self.assertTrue(backup_dir.is_dir())
         self.assertTrue(Paths.CONFIG_YAML.is_file())
         self.assertTrue((Paths.JUJUDATA_COOKIES_DIR / "test-controller.json").is_file())
-        self.assertEqual(
-            ACCOUNTS_YAML, (Paths.JUJUDATA_DIR / "accounts.yaml").read_text()
-        )
-        self.assertEqual(
-            CONTROLLERS_YAML, (Paths.JUJUDATA_DIR / "controllers.yaml").read_text()
-        )
+        self.assertEqual(ACCOUNTS_YAML, (Paths.JUJUDATA_DIR / "accounts.yaml").read_text())
+        self.assertEqual(CONTROLLERS_YAML, (Paths.JUJUDATA_DIR / "controllers.yaml").read_text())
         self.assertIn(
             self.harness.charm.config["crontab"],
             Paths.AUTO_BACKUP_CRONTAB_PATH.read_text(),
@@ -250,9 +244,7 @@ class TestCharm(unittest.TestCase):
         self.harness.begin()
         self.harness.charm._on_do_backup_action(action_event)
 
-        mock_process_backups.assert_called_once_with(
-            omit_models=["omit-me", "and-me-too"]
-        )
+        mock_process_backups.assert_called_once_with(omit_models=["omit-me", "and-me-too"])
         mock_push_ssh_keys.assert_called_once()
         action_event.set_results.assert_called_once_with({"result": mock_results})
 
@@ -287,9 +279,7 @@ class TestCharm(unittest.TestCase):
             relation_id, "nrpe/0", {"private-address": "1.2.3.4", "port": "5666"}
         )
 
-        self.assertTrue(
-            (Paths.NAGIOS_PLUGINS_DIR / "check_auto_backup_results.py").is_file()
-        )
+        self.assertTrue((Paths.NAGIOS_PLUGINS_DIR / "check_auto_backup_results.py").is_file())
         kwargs = self.harness.charm.helper.nrpe.add_check.call_args[1]
         self.assertEqual(kwargs["shortname"], "juju_backup_all_results")
         self.harness.charm.helper.nrpe.write.assert_called_once()
