@@ -107,7 +107,7 @@ jobs:
         with:
           provider: "lxd"
           juju-channel: ${{ matrix.juju-channel }}
-          charmcraft-channel: "2.x/stable"
+          charmcraft-channel: "3.x/stable"
 
         # This is used by zaza in the functional tests for non-amd64 architectures (if applicable)
       - name: Set zaza juju model constraints for architecture
