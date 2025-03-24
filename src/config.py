@@ -1,5 +1,6 @@
 # Copyright 2021 Canonical Ltd.
 # See LICENSE file for licensing details.
+"""Charm config."""
 import pathlib
 
 BACKUP_USERNAME = "jujubackup"
@@ -7,7 +8,7 @@ EXPORTER_NAME = "prometheus-juju-backup-all-exporter"
 EXPORTER_RELATION_NAME = "metrics-endpoint"
 
 
-class Paths:
+class Paths:  # pylint: disable=too-few-public-methods
     """Namespace for path constants."""
 
     JUJUDATA_DIR = pathlib.Path("/var/lib/jujubackupall")
@@ -21,5 +22,5 @@ class Paths:
     AUTO_BACKUP_RESULTS_PATH = JUJUDATA_DIR / "auto_backup_results.json"
     AUTO_BACKUP_CRONTAB_PATH = pathlib.Path("/etc/cron.d/juju-backup-all")
     NAGIOS_PLUGINS_DIR = pathlib.Path("/usr/local/lib/nagios/plugins/")
-    EXPORTER_CONFIG = pathlib.Path("/var/snap/{}/current/config.yaml".format(EXPORTER_NAME))
-    EXPORTER_BACKUP_RESULTS_PATH = pathlib.Path("/var/snap/{}/common".format(EXPORTER_NAME))
+    EXPORTER_CONFIG = pathlib.Path(f"/var/snap/{EXPORTER_NAME}/current/config.yaml")
+    EXPORTER_BACKUP_RESULTS_PATH = pathlib.Path(f"/var/snap/{EXPORTER_NAME}/common")

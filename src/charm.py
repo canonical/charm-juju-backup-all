@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright 2021 Canonical Ltd.
 # See LICENSE file for licensing details.
+"""Juju backup all charm."""
 
 import logging
 import os
@@ -94,7 +95,7 @@ class JujuBackupAllCharm(CharmBase):
         result = self.helper.push_ssh_keys()
         event.set_results({"result": result})
 
-    def _on_install_or_upgrade(self, event):
+    def _on_install_or_upgrade(self, _event):
         """Install charm and perform initial setup."""
         self.helper.create_backup_user()
         self.helper.init_jujudata_dir()
@@ -103,7 +104,7 @@ class JujuBackupAllCharm(CharmBase):
         self.model.unit.status = ActiveStatus("Install complete")
         logging.info("Charm install complete")
 
-    def _on_update_status(self, event):
+    def _on_update_status(self, _event):
         self.exporter.check_health()
 
     def _on_config_changed(self, event):

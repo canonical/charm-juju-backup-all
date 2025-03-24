@@ -1,3 +1,5 @@
+"""Exporter related functions."""
+
 from functools import wraps
 from logging import getLogger
 from time import sleep
@@ -150,10 +152,10 @@ class Exporter(MetricsEndpointProvider):
             logger.info("Updated static_configs.targets")
             self.configure()
 
-    def _on_relation_joined(self, event):
+    def _on_relation_joined(self, _event):
         """Start the exporter snap when relation joined."""
         self.start()
 
-    def _on_relation_departed(self, event):
+    def _on_relation_departed(self, _event):
         """Remove the exporter snap when relation departed."""
         self.stop()
