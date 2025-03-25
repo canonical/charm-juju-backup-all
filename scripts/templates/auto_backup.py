@@ -125,9 +125,9 @@ def check_backup_file(backup_results_file):
             str(e),
         )
         return 2
-    else:
-        logger.info("backups are OK")
-        return 0
+
+    logger.info("backups are OK")
+    return 0
 
 
 def write_backup_info(data, destination):
@@ -164,12 +164,12 @@ class AutoJujuBackupAll:
 
         backup_processor = BackupProcessor(self.config)
         backup_results = backup_processor.process_backups(omit_models=omit_models)
-        logger.info(f"backup results = '{backup_results}'")
+        logger.info("backup results = '%s'", backup_results)
         return backup_results
 
     def purge_old_backups(self, days_old):
         """Purge backup files older than `day_old`."""
-        logger.info("purging backup files older than: '{}' days".format(days_old))
+        logger.info("purging backup files older than: '%s' days", days_old)
         cmd = [
             "find",
             self.config.output_dir,

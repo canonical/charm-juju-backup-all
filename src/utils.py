@@ -68,7 +68,7 @@ class JujuBackupAllHelper:
 
     def deploy_scripts(self):
         """Deploy the scripts needed by the charm."""
-        logging.debug(f"charm dir: '{self.charm_dir}'")
+        logging.debug("charm dir: '%s'", self.charm_dir)
 
         # Create the auto_backup.py script from the template with the right permissions
         logging.debug("templating and deploying the auto_backup.py script")
@@ -145,7 +145,7 @@ class JujuBackupAllHelper:
         self.push_ssh_keys()
         backup_processor = BackupProcessor(self.config)
         backup_results = backup_processor.process_backups(omit_models=omit_models)
-        logging.info(f"backup results = '{backup_results}'")
+        logging.info("backup results = '%s'", backup_results)
         self._update_dir_owner(self.charm_config["backup-dir"])
         return backup_results
 
@@ -158,25 +158,23 @@ class JujuBackupAllHelper:
     def update_crontab(self):
         """Update crontab "/etc/cron.d/juju-backup-all" that runs "auto_backup.py"."""
         path = "PATH=/usr/bin:/bin:/snap/bin"
-        cron_job = "{}\n{} {} {} --debug".format(
-            path,
-            self.charm_config["crontab"],
-            "root",  # backup script need to write to /var/snap/{exporter_name}/common
-            Paths.AUTO_BACKUP_SCRIPT_PATH,
+        # root used because the backup script needs to write to /var/snap/{exporter_name}/common
+        cron_job = (
+            f"{path}\n{self.charm_config['crontab']} root {Paths.AUTO_BACKUP_SCRIPT_PATH} --debug"
         )
 
         if self.charm_config["backup-retention-period"]:
-            cron_job += " --purge {}".format(self.charm_config["backup-retention-period"])
+            cron_job += f" --purge {self.charm_config['backup-retention-period']}"
 
         if self.charm_config["timeout"]:
-            cron_job += " --task-timeout {}".format(self.charm_config["timeout"])
+            cron_job += f" --task-timeout {self.charm_config['timeout']}"
 
         if self.charm_config["exclude-models"]:
             exclude_models = self.charm_config["exclude-models"].split(",")
-            omit_model_params = " ".join(["--omit-model {}".format(m) for m in exclude_models])
+            omit_model_params = " ".join([f"--omit-model {m}" for m in exclude_models])
             cron_job += " " + omit_model_params
 
-        cron_job += " >> {} 2>&1\n".format(Paths.AUTO_BACKUP_LOG_PATH)
+        cron_job += f" >> {Paths.AUTO_BACKUP_LOG_PATH} 2>&1\n"
         Paths.AUTO_BACKUP_CRONTAB_PATH.write_text(cron_job, encoding="utf-8")
 
     def update_jujudata_config(self):
@@ -192,7 +190,7 @@ class JujuBackupAllHelper:
         controllers_yaml = self.charm_config["controllers"]
         controller_names = yaml.safe_load(controllers_yaml)["controllers"].keys()
         for controller_name in controller_names:
-            logging.debug("writing cookie file for controller: '{}'".format(controller_name))
+            logging.debug("writing cookie file for controller: '%s'", controller_name)
             (Paths.JUJUDATA_COOKIES_DIR / f"{controller_name}.json").write_text("null")
 
         # save the charm config as yaml for the cronjob
@@ -203,13 +201,13 @@ class JujuBackupAllHelper:
     def validate_config(self):
         """Validate the current juju config options."""
         for yaml_field in ["controllers", "accounts"]:
-            logging.debug(f"checking config '{yaml_field}'...")
+            logging.debug("checking config '%s'...", yaml_field)
             content = self.charm_config[yaml_field]
             try:
                 content_dict = yaml.safe_load(content)
                 assert isinstance(content_dict, dict)
                 assert "controllers" in content_dict
-                logging.debug(f"config for '{yaml_field}' is valid")
+                logging.debug("config for '%s' is valid", yaml_field)
             except (ParserError, AssertionError):
                 msg = f"Invalid yaml for '{yaml_field}' option"
                 logging.error(msg)
@@ -266,27 +264,25 @@ class SSHKeyHelper:  # pylint: disable=too-few-public-methods
         for controller_name in backup_processor.controller_names:
             try:
                 with connect_controller(controller_name) as controller:
-                    logging.debug(f"processing controller: {controller_name}")
+                    logging.debug("processing controller: %s", controller_name)
                     model_names = run_async(controller.list_models())
                     for model_name in model_names:
                         try:
-                            logging.debug("connecting to model: '{}'".format(model_name))
+                            logging.debug("connecting to model: '%s'", model_name)
                             with connect_model(controller, model_name) as model:
-                                logging.debug("processing model: {}".format(model_name))
+                                logging.debug("processing model: %s", model_name)
                                 # check if the fingerprint is present, if not add it
                                 username = self.accounts[controller_name]["user"]
                                 if fingerprint not in self._get_model_ssh_key_fingeprints(model):
                                     logging.debug(
-                                        "ssh key missing for user '{}',"
-                                        "adding it".format(username)
+                                        "ssh key missing for user '%s', adding it", username
                                     )
                                     run_async(model.add_ssh_keys(username, pubkey))
                                 else:
                                     logging.debug(
-                                        "key for user '{}' already present,"
-                                        "skipping".format(username)
+                                        "key for user '%s' already present, skipping", username
                                     )
-                        except Exception:
+                        except Exception:  # pylint: disable=broad-exception-caught
                             logging.error(traceback.format_exc())
             except Exception:  # pylint: disable=broad-exception-caught
                 logging.error(traceback.format_exc())
@@ -305,19 +301,19 @@ class SSHKeyHelper:  # pylint: disable=too-few-public-methods
                 raw_pubkey = Paths.SSH_PUBLIC_KEY.read_text().strip()
             _key_type, key_body, key_comment = raw_pubkey.split()
         except ValueError:
-            logging.error("Invalid ssh pubkey: {}".format(raw_pubkey))
+            logging.error("Invalid ssh pubkey: %s", raw_pubkey)
             raise
 
-        logging.debug("processing key_comment='{}', key_body='{}'".format(key_comment, key_body))
+        logging.debug("processing key_comment='%s', key_body='%s'", key_comment, key_body)
         key = base64.b64decode(key_body)
         key_fp_plain = hashlib.md5(key).hexdigest()
         key_fp = ":".join(a + b for a, b in zip(key_fp_plain[::2], key_fp_plain[1::2]))
-        return "{} ({})".format(key_fp, key_comment)
+        return f"{key_fp} ({key_comment})"
 
     def _get_model_ssh_key_fingeprints(self, model):
         """Extract libjuju ssh keys from a model."""
         libjuju_keyinfo = run_async(model.get_ssh_keys())
-        logging.debug("get_ssh_keys received: '{}'".format(libjuju_keyinfo))
+        logging.debug("get_ssh_keys received: '%s'", libjuju_keyinfo)
         fingerprints = libjuju_keyinfo.get("results")[0]["result"]
         # handle the case where there are no keys
         return fingerprints if fingerprints else []

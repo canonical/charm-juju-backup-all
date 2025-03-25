@@ -113,11 +113,13 @@ class JujuBackupAllCharm(CharmBase):
         # information are changed. This can be helpful when we want to respond
         # to the change of a specific config option.
         change_set = set()
-        model_config = {k: v for k, v in self.model.config.items()}
+        model_config = {  # pylint: disable=unnecessary-comprehension
+            k: v for k, v in self.model.config.items()
+        }
         model_config.update({"exporter-snap": self.snap_path})
         for key, value in model_config.items():
             if key not in self._stored.config or self._stored.config[key] != value:
-                logger.info("Setting {} to: {}".format(key, value))
+                logger.info("Setting %s to: %s", key, value)
                 self._stored.config[key] = value
                 change_set.add(key)
 
@@ -125,8 +127,7 @@ class JujuBackupAllCharm(CharmBase):
 
         if not self._stored.installed:
             logging.info(
-                "Config changed called before install complete, deferring event: "
-                "{}".format(event.handle)
+                "Config changed called before install complete, deferring event: %s", event.handle
             )
             event.defer()
             return
@@ -151,7 +152,7 @@ class JujuBackupAllCharm(CharmBase):
 
     def _on_nem_changed(self, event):
         """Handle nrpe-external-master relation change."""
-        logging.info("Got nrpe-external-master changed {}".format(event))
+        logging.info("Got nrpe-external-master changed %s", event)
         self.helper.configure_nrpe()
 
     def _configure_logging(self):
