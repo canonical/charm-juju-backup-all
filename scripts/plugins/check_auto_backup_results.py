@@ -45,7 +45,7 @@ NAGIOS_STATUS = {
 def nagios_exit(status, message):
     """Test if nagios exists."""
     assert status in NAGIOS_STATUS, "Invalid Nagios status code"
-    output = "{}: {}".format(NAGIOS_STATUS[status], message)
+    output = f"{NAGIOS_STATUS[status]}: {message}"
     print(output)  # nagios requires print to stdout, no stderr
     sys.exit(status)
 
@@ -55,7 +55,7 @@ def validate_backup_results_file(backup_results_file, max_age):
     # raise CRITICAL alert if the backup results file is missing
     # which implies cron job is not longer working
     if not backup_results_file.is_file():
-        message = "backup results file not found: {}".format(backup_results_file)
+        message = f"backup results file not found: {backup_results_file}"
         nagios_exit(NAGIOS_STATUS_CRITICAL, message)
 
     if max_age > 0:
@@ -63,8 +63,8 @@ def validate_backup_results_file(backup_results_file, max_age):
         age_sec = int(time() - stat.st_mtime)
         max_age_sec = max_age * 3600
         if age_sec > max_age_sec:
-            message = "backup results file {} is older than max age {} hours".format(
-                backup_results_file, max_age
+            message = (
+                f"backup results file {backup_results_file} is older than max age {max_age} hours"
             )
             nagios_exit(NAGIOS_STATUS_CRITICAL, message)
 
@@ -100,7 +100,7 @@ def main():
 
     validate_backup_results_file(backup_results_file, max_age)
 
-    raw_backup_results = backup_results_file.read_text()
+    raw_backup_results = backup_results_file.read_text(encoding="utf-8")
 
     # check that the backups are valid:
     # * the results must be a valid json object with the expected structure
@@ -111,7 +111,7 @@ def main():
         # "ERROR" will contain a traceback if something crashed during the backups.
         # See scripts/templates/auto_backup.py::AutoJujuBackupAll.run()
         if "ERROR" in backup_results:
-            msg = "Detected error when performing backup: '{}'".format(backup_results["ERROR"])
+            msg = f"Detected error when performing backup: '{backup_results['ERROR']}'"
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
         # This entry is populated by the jujubackupall backup process
@@ -123,7 +123,7 @@ def main():
         # can result in inability to recover from data loss events.
         if "errors" in backup_results:
             errors: list[dict[str, str]] = backup_results["errors"]
-            msg = "Detected error when performing backup: '{}'".format(errors)
+            msg = f"Detected error when performing backup: '{errors}'"
             nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
         for backup_type, backup_entries in backup_results.items():
@@ -132,20 +132,18 @@ def main():
 
             for backup_entry in backup_entries:
                 if "download_path" not in backup_entry:
-                    msg = "Missing backup download_path for: {}, details: {}".format(
-                        backup_type, backup_entry
+                    msg = (
+                        f"Missing backup download_path for: {backup_type}, details: {backup_entry}"
                     )
                     nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
                 elif not isfile(backup_entry["download_path"]):
-                    msg = "Backup file is missing for: {}, details: {}".format(
-                        backup_type, backup_entry
-                    )
+                    msg = f"Backup file is missing for: {backup_type}, details: {backup_entry}"
                     nagios_exit(NAGIOS_STATUS_CRITICAL, msg)
 
-    except Exception:
+    except Exception:  # pylint: disable=broad-exception-caught
         nagios_exit(
             NAGIOS_STATUS_CRITICAL,
-            "Invalid backup results file: {}".format(backup_results_file),
+            f"Invalid backup results file: {backup_results_file}",
         )
 
     # if we haven't found any issues, return OK

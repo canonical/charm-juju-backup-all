@@ -37,12 +37,16 @@ sys.path.insert(0, "REPLACE_CHARMDIR/venv")
 sys.path.insert(0, "REPLACE_CHARMDIR/src")
 sys.path.insert(0, "REPLACE_CHARMDIR/lib")
 
-from jujubackupall import globals  # noqa E402
-from jujubackupall.config import Config  # noqa E402
-from jujubackupall.process import BackupProcessor  # noqa E402
+from jujubackupall import (  # noqa E402, pylint: disable=redefined-builtin,wrong-import-position
+    globals,
+)
+from jujubackupall.config import Config  # noqa E402, pylint: disable=wrong-import-position
+from jujubackupall.process import (  # noqa E402, pylint: disable=wrong-import-position
+    BackupProcessor,
+)
 
-from config import Paths  # noqa E402
-from utils import SSHKeyHelper  # noqa E402
+from config import Paths  # noqa E402, pylint: disable=wrong-import-position
+from utils import SSHKeyHelper  # noqa E402, pylint: disable=wrong-import-position
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +74,7 @@ def check_backup_file(backup_results_file):
         result_code: nagios exit status
     """
     try:
-        with open(backup_results_file, "r") as f:
+        with open(backup_results_file, "r", encoding="utf-8") as f:
             backup_results = json.load(f)
             # "ERROR" will contain a traceback if something crashed during the backups.
             # See AutoJujuBackupAll.run()
@@ -100,33 +104,34 @@ def check_backup_file(backup_results_file):
                     continue
 
                 for backup_entry in backup_entries:
-                    if "download_path" not in backup_entry:
+                    if "download_path" not in backup_entry:  # pylint: disable=duplicate-code
                         logger.error(
                             "Missing backup download_path for: %s, details: %s",
                             backup_type,
                             backup_entry,
                         )
                         return 2
-                    elif not pathlib.Path(backup_entry["download_path"]).is_file():
+                    if not pathlib.Path(backup_entry["download_path"]).is_file():
                         logger.error(
                             "Backup file is missing for: %s, details: %s",
                             backup_type,
                             backup_entry,
                         )
                         return 2
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-exception-caught
         logger.error(
             "Invalid backup results file: %s. %s",
             str(backup_results_file),
             str(e),
         )
         return 2
-    else:
-        logger.info("backups are OK")
-        return 0
+
+    logger.info("backups are OK")
+    return 0
 
 
 def write_backup_info(data, destination):
+    """Write backup data to destination path."""
     dest = pathlib.Path(destination)
     if not dest.parent.exists():
         logger.warning(
@@ -134,7 +139,7 @@ def write_backup_info(data, destination):
             str(dest.parent),
         )
         return
-    with open(destination, "w") as fp:
+    with open(destination, "w", encoding="utf-8") as fp:
         json.dump(data, fp)
 
 
@@ -159,17 +164,17 @@ class AutoJujuBackupAll:
 
         backup_processor = BackupProcessor(self.config)
         backup_results = backup_processor.process_backups(omit_models=omit_models)
-        logger.info("backup results = '{}'".format(backup_results))
+        logger.info("backup results = '%s'", backup_results)
         return backup_results
 
     def purge_old_backups(self, days_old):
         """Purge backup files older than `day_old`."""
-        logger.info("purging backup files older than: '{}' days".format(days_old))
+        logger.info("purging backup files older than: '%s' days", days_old)
         cmd = [
             "find",
             self.config.output_dir,
             "-mtime",
-            "+{}".format(days_old),
+            f"+{days_old}",
             "-type",
             "f",
             "-delete",
@@ -234,9 +239,9 @@ class AutoJujuBackupAll:
         pid = str(os.getpid())
 
         if PID_FILENAME.is_file():
-            sys.exit("{} already exists, exiting".format(PID_FILENAME))
+            sys.exit(f"{PID_FILENAME} already exists, exiting")
 
-        PID_FILENAME.write_text(pid)
+        PID_FILENAME.write_text(pid, encoding="utf-8")
 
         stime = time.time()
         purge_count = 0
@@ -285,6 +290,6 @@ class AutoJujuBackupAll:
         logging.getLogger("asyncio").setLevel(logging.CRITICAL)
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # pylint: disable=duplicate-code
     auto_backup = AutoJujuBackupAll()
     auto_backup.run()

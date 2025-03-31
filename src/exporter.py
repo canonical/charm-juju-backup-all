@@ -1,3 +1,5 @@
+"""Exporter related functions."""
+
 from functools import wraps
 from logging import getLogger
 from time import sleep
@@ -18,9 +20,12 @@ def check_snap_installed(func):
     def wrapper(self, *args, **kwargs):
         try:
             fn = func.__name__
-            self._exporter = self._exporter or snap.SnapCache()[EXPORTER_NAME]
+            self._exporter = (  # pylint: disable=protected-access
+                self._exporter  # pylint: disable=protected-access
+                or snap.SnapCache()[EXPORTER_NAME]
+            )
             logger.info("%s exporter snap.", fn.capitalize())
-            if not (self._exporter and self._exporter.present):
+            if not (self._exporter and self._exporter.present):  # pylint: disable=protected-access
                 msg = f"Cannot {fn} the exporter because it is not installed."
                 raise snap.SnapNotFoundError(msg)
             func(self, *args, **kwargs)
@@ -124,10 +129,11 @@ class Exporter(MetricsEndpointProvider):
                         logger.info("Exporter restarted.")
                         return
                 logger.error("Failed to restart the exporter.")
-        except Exception as e:
+        except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Unknown error when trying to check exporter health: %s", str(e))
 
     def on_config_changed(self, change_set):
+        """Update configuration after charm config changed."""
         observe = set(["exporter-snap", "exporter-channel", "exporter-port"])
         if len(observe.intersection(change_set)) > 0:
             logger.info("Exported config changed")
@@ -150,10 +156,10 @@ class Exporter(MetricsEndpointProvider):
             logger.info("Updated static_configs.targets")
             self.configure()
 
-    def _on_relation_joined(self, event):
+    def _on_relation_joined(self, _event):
         """Start the exporter snap when relation joined."""
         self.start()
 
-    def _on_relation_departed(self, event):
+    def _on_relation_departed(self, _event):
         """Remove the exporter snap when relation departed."""
         self.stop()

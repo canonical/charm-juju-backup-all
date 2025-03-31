@@ -69,7 +69,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
             MOCK_CONFIG["timeout"],
             config.Paths.AUTO_BACKUP_LOG_PATH,
         )
-        cronjob_write_text.assert_called_once_with(expected_cron_job)
+        cronjob_write_text.assert_called_once_with(expected_cron_job, encoding="utf-8")
 
     @mock.patch("pathlib.Path.write_text")
     def test_update_crontab_exclude_model(self, cronjob_write_text):
@@ -91,7 +91,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
             MOCK_CONFIG["timeout"],
             config.Paths.AUTO_BACKUP_LOG_PATH,
         )
-        cronjob_write_text.assert_called_once_with(expected_cron_job)
+        cronjob_write_text.assert_called_once_with(expected_cron_job, encoding="utf-8")
 
     @mock.patch("pathlib.Path.write_text")
     def test_update_crontab_exclude_models(self, cronjob_write_text):
@@ -113,7 +113,7 @@ class TestJujuBackupAllHelper(unittest.TestCase):
             MOCK_CONFIG["timeout"],
             config.Paths.AUTO_BACKUP_LOG_PATH,
         )
-        cronjob_write_text.assert_called_once_with(expected_cron_job)
+        cronjob_write_text.assert_called_once_with(expected_cron_job, encoding="utf-8")
 
 
 class TestSSHKeyHelper(unittest.TestCase):
