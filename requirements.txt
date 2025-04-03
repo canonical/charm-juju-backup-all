@@ -1,4 +1,4 @@
-git+https://github.com/canonical/juju-backup-all.git@1.1.1
+git+https://github.com/canonical/juju-backup-all.git@1.2.0
 charmhelpers
 ops
 typing-extensions
