@@ -10,6 +10,9 @@ along with a script to automate its execution, `auto_backup.py`. In addition,
 a crontab is deployed to run `auto_backup.py`, as well as a Nagios check which
 alerts on any issues when performing backups.
 
+## Juju Version Compatibility
+Please refer to [Juju Version Compatibility Guide](./COMPATIBILITY.md).
+
 ## Usage
 
 Deploy this charm with:
