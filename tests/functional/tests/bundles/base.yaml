@@ -13,8 +13,9 @@ applications:
     num_units: 3
   etcd:
     charm: etcd
-    # NOTE: switch back to stable when the fix for https://bugs.launchpad.net/charm-etcd/+bug/2096820 is released to stable
-    channel: latest/edge
+    channel: latest/stable
+    # Etcd drops support for Focal
+    series: jammy
     num_units: 1
   easyrsa:
     charm: easyrsa
