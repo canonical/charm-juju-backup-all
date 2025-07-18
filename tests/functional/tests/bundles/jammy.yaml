@@ -1,1 +1,23 @@
-base.yaml
+applications:
+  juju-backup-all:
+    charm: juju-backup-all
+    base: ubuntu@22.04/stable
+    num_units: 1
+  postgresql:
+    charm: postgresql
+    base: ubuntu@22.04/stable
+    num_units: 1
+  mysql:
+    charm: mysql-innodb-cluster
+    base: ubuntu@22.04/stable
+    num_units: 3
+  etcd:
+    charm: etcd
+    base: ubuntu@22.04/stable
+    num_units: 1
+  easyrsa:
+    charm: easyrsa
+    base: ubuntu@22.04/stable
+    num_units: 1
+relations:
+  - [etcd:certificates, easyrsa:client]
