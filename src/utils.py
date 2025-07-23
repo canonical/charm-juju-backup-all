@@ -15,6 +15,7 @@ import yaml
 from charmhelpers.contrib.charmsupport.nrpe import NRPE
 from charmhelpers.core import hookenv, host
 from charmhelpers.core.host import rsync
+from jujubackupall import globals
 from jujubackupall.config import Config
 from jujubackupall.process import BackupProcessor
 from jujubackupall.utils import connect_controller, connect_model
@@ -143,6 +144,8 @@ class JujuBackupAllHelper:
         """Perform backups."""
         # first ensure the ssh key is in all models, then perform the backup
         self.push_ssh_keys()
+        # ensure the global variables are updated in the jujubackupall globals
+        self.update_global_vars()
         backup_processor = BackupProcessor(self.config)
         backup_results = backup_processor.process_backups(omit_models=omit_models)
         logging.info("backup results = '%s'", backup_results)
@@ -154,6 +157,11 @@ class JujuBackupAllHelper:
         ssh_helper = SSHKeyHelper(self.config, self.accounts)
         ssh_helper.push_ssh_keys_to_models()
         return "success"
+
+    def update_global_vars(self):
+        """Update global variables used by the Juju-backup-all library."""
+        if self.charm_config["timeout"]:
+            globals.async_timeout = self.charm_config["timeout"]
 
     def update_crontab(self):
         """Update crontab "/etc/cron.d/juju-backup-all" that runs "auto_backup.py"."""
