@@ -37,9 +37,6 @@ sys.path.insert(0, "REPLACE_CHARMDIR/venv")
 sys.path.insert(0, "REPLACE_CHARMDIR/src")
 sys.path.insert(0, "REPLACE_CHARMDIR/lib")
 
-from jujubackupall import (  # noqa E402, pylint: disable=redefined-builtin,wrong-import-position
-    globals,
-)
 from jujubackupall.config import Config  # noqa E402, pylint: disable=wrong-import-position
 from jujubackupall.process import (  # noqa E402, pylint: disable=wrong-import-position
     BackupProcessor,
@@ -231,9 +228,6 @@ class AutoJujuBackupAll:
 
         log_level = logging.DEBUG if args.debug else logging.ERROR
         self.configure_logging(log_level=log_level)
-
-        if args.task_timeout > 0:
-            globals.async_timeout = args.task_timeout
 
         # Ensure a single instance via a simple pidfile
         pid = str(os.getpid())
