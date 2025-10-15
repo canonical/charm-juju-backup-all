@@ -9,6 +9,7 @@ from charms.prometheus_k8s.v0.prometheus_scrape import MetricsEndpointProvider
 from yaml import safe_dump
 
 from config import EXPORTER_NAME, EXPORTER_RELATION_NAME, Paths
+from ssdlc import SSDLCSysEvent, log_ssdlc_system_event
 
 logger = getLogger(__name__)
 
@@ -73,16 +74,23 @@ class Exporter(MetricsEndpointProvider):
     def start(self):
         """Start the exporter daemon."""
         self._exporter.start()  # pragma: no cover
+        log_ssdlc_system_event(SSDLCSysEvent.STARTUP)
 
     @check_snap_installed
     def restart(self):
         """Restart the exporter daemon."""
-        self._exporter.restart()  # pragma: no cover
+        log_ssdlc_system_event(SSDLCSysEvent.RESTART)
+        try:
+            self._exporter.restart()  # pragma: no cover
+        except Exception as err:
+            log_ssdlc_system_event(SSDLCSysEvent.CRASH, msg=str(err))
+            raise
 
     @check_snap_installed
     def stop(self):
         """Stop the exporter daemon."""
         self._exporter.stop()  # pragma: no cover
+        log_ssdlc_system_event(SSDLCSysEvent.SHUTDOWN)
 
     @check_snap_installed
     def configure(self):
@@ -129,8 +137,10 @@ class Exporter(MetricsEndpointProvider):
                         logger.info("Exporter restarted.")
                         return
                 logger.error("Failed to restart the exporter.")
+                log_ssdlc_system_event(SSDLCSysEvent.CRASH)
         except Exception as e:  # pylint: disable=broad-exception-caught
             logger.error("Unknown error when trying to check exporter health: %s", str(e))
+            log_ssdlc_system_event(SSDLCSysEvent.CRASH, msg=str(e))
 
     def on_config_changed(self, change_set):
         """Update configuration after charm config changed."""

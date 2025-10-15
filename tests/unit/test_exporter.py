@@ -147,9 +147,10 @@ class TestExporter(unittest.TestCase):
         self.harness.charm.on.config_changed.emit()
         mock_logger.error.assert_called()
 
+    @mock.patch("exporter.log_ssdlc_system_event")
     @mock.patch.object(Exporter, "stop")
     @mock.patch.object(Exporter, "start")
-    def test_20_on_relation_joined_and_departed(self, mock_start, mock_stop):
+    def test_20_on_relation_joined_and_departed(self, mock_start, mock_stop, mock_ssdlc_log):
         """Test _on_relation_* calls the right methods."""
         rid = self.harness.add_relation(EXPORTER_RELATION_NAME, "prometheus-scrape")
         self.harness.begin()
@@ -159,8 +160,11 @@ class TestExporter(unittest.TestCase):
         mock_stop.assert_called_once()
 
     @patch_snap_installed()
+    @mock.patch("exporter.log_ssdlc_system_event")
     @mock.patch("exporter.logger")
-    def test_30_health_check_on_update_status_healthy(self, mock_logger, mock_snap_installed):
+    def test_30_health_check_on_update_status_healthy(
+        self, mock_logger, mock_ssdlc_log, mock_snap_installed
+    ):
         """Test check_health reporting healthy status."""
         rid = self.harness.add_relation(EXPORTER_RELATION_NAME, "prometheus-scrape")
         self.harness.begin()
@@ -172,10 +176,11 @@ class TestExporter(unittest.TestCase):
             mock_logger.info.assert_any_call("Exporter health check - healthy.")
 
     @patch_snap_installed()
+    @mock.patch("exporter.log_ssdlc_system_event")
     @mock.patch("exporter.sleep")
     @mock.patch("exporter.logger")
     def test_31_health_check_on_update_status_unhealthy(
-        self, mock_logger, mock_sleep, mock_snap_installed
+        self, mock_logger, mock_sleep, mock_ssdlc_log, mock_snap_installed
     ):
         """Test check_health restarting unhealthy snap."""
         rid = self.harness.add_relation(EXPORTER_RELATION_NAME, "prometheus-scrape")
@@ -188,12 +193,15 @@ class TestExporter(unittest.TestCase):
             self.harness.charm.on.update_status.emit()
             mock_logger.warning.assert_any_call("Exporter health check - unhealthy.")
             mock_sleep.assert_called()
+            # Verify SSDLC crash logging when restart fails
+            mock_ssdlc_log.assert_called()
 
     @patch_snap_installed()
+    @mock.patch("exporter.log_ssdlc_system_event")
     @mock.patch("exporter.sleep")
     @mock.patch("exporter.logger")
     def test_32_health_check_on_update_status_unknown(
-        self, mock_logger, mock_sleep, mock_snap_installed
+        self, mock_logger, mock_sleep, mock_ssdlc_log, mock_snap_installed
     ):
         """Test check_health crashes on unknown error."""
         rid = self.harness.add_relation(EXPORTER_RELATION_NAME, "prometheus-scrape")
@@ -205,3 +213,5 @@ class TestExporter(unittest.TestCase):
             self.harness.charm.exporter._exporter.services = {}
             self.harness.charm.on.update_status.emit()
             mock_logger.error.assert_called()
+            # Verify SSDLC crash logging for unknown errors
+            mock_ssdlc_log.assert_called()
