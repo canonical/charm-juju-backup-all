@@ -28,7 +28,7 @@ jobs:
         python-version: ['3.8', '3.10', '3.12']
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -55,7 +55,7 @@ jobs:
         python-version: ['3.8', '3.10', '3.12']
     runs-on: ubuntu-24.04
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         submodules: true
 
@@ -109,7 +109,7 @@ jobs:
       matrix:
         runs-on: [[self-hosted, linux, x64, large, jammy]]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
@@ -148,7 +148,7 @@ jobs:
         test-command: ['tox -e func']
         juju-channel: ["3.6/stable"]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           submodules: true
 
@@ -274,7 +274,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main')
     needs: func
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
