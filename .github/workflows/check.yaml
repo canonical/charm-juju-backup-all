@@ -189,6 +189,9 @@ jobs:
         run: |
           ls *.charm
 
+      - name: Setup tmate session
+        uses: canonical/action-tmate@main
+
       - name: Run tests
         run: |
           # These variables are for a consistent method to find the charm file(s) across all projects.
