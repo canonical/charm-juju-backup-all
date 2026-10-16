@@ -33,22 +33,21 @@ LEADER = f"{APP_NAME}/leader"
 DEPLOY_TIMEOUT = 60 * 60
 WAIT_TIMEOUT = 45 * 60
 
-# The old bundles/<release>.yaml. A channel of None means the bundle didn't set one.
 BUNDLES = {
     "noble": {
         "base": "ubuntu@24.04",
         "postgresql-channel": "16/stable",
-        "mysql-channel": "latest/edge",
+        "mysql-innodb-cluster-channel": "8.0/stable",
     },
     "jammy": {
         "base": "ubuntu@22.04",
-        "postgresql-channel": None,
-        "mysql-channel": None,
+        "postgresql-channel": "14/stable",
+        "mysql-innodb-cluster-channel": "8.0/stable",
     },
     "focal": {
         "base": "ubuntu@20.04",
         "postgresql-channel": "latest/stable",
-        "mysql-channel": None,
+        "mysql-innodb-cluster-channel": "8.0/stable",
     },
 }
 
@@ -231,12 +230,23 @@ def test_deploy(juju: jubilant.Juju, series: str):
     # postgresql, mysql and etcd are the backup targets. easyrsa is only there to issue
     # etcd's TLS certificates.
     juju.deploy(charm_path(series), APP_NAME, base=base)
+
+    # Let the first machine start before adding the others, so LXD caches the base image
+    # once. Machines that download the same image at the same time can fail with
+    # "Alias already exists: juju/ubuntu@<version>/amd64".
+    juju.wait(
+        lambda status: bool(status.machines)
+        and all(m.juju_status.current == "started" for m in status.machines.values()),
+        error=any_hard_error,
+        timeout=WAIT_TIMEOUT,
+    )
+
     juju.deploy("postgresql", base=base, channel=bundle["postgresql-channel"])
     juju.deploy(
         "mysql-innodb-cluster",
         "mysql",
         base=base,
-        channel=bundle["mysql-channel"],
+        channel=bundle["mysql-innodb-cluster-channel"],
         num_units=3,
     )
     juju.deploy("etcd", base=base)
