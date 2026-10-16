@@ -152,13 +152,27 @@ def series(request: pytest.FixtureRequest) -> str:
 
 
 @pytest.fixture(scope="module")
-def juju(juju_factory: JujuFactory, series: str) -> jubilant.Juju:
-    """Model for the current release, replacing pytest-jubilant's single-model ``juju``."""
-    return juju_factory.get_juju(series)
+def machine_cloud(request: pytest.FixtureRequest) -> str:
+    """Cloud for the machine models: --juju-cloud if given, else the controller's own cloud.
+
+    Once the k8s cloud is registered, the controller manages more than one cloud, and
+    `juju add-model` fails unless it is told which one to use.
+    """
+    controllers = json.loads(
+        jubilant.Juju().cli("controllers", "--format", "json", include_model=False)
+    )
+    cloud = controllers["controllers"][controller_name(request)]["cloud"]
+    return request.config.getoption("--juju-cloud") or cloud
 
 
 @pytest.fixture(scope="module")
-def juju_s3(juju_factory: JujuFactory, series: str) -> jubilant.Juju:
+def juju(juju_factory: JujuFactory, series: str, machine_cloud: str) -> jubilant.Juju:
+    """Model for the current release, replacing pytest-jubilant's single-model ``juju``."""
+    return juju_factory.get_juju(series, cloud=machine_cloud)
+
+
+@pytest.fixture(scope="module")
+def juju_s3(juju_factory: JujuFactory, series: str, machine_cloud: str) -> jubilant.Juju:
     """Model for the current release's machine charms in S3_BACKUP_TARGETS.
 
     Unlike the bundle's model, it keeps Juju's default model config. The clusters' hooks can
@@ -166,13 +180,13 @@ def juju_s3(juju_factory: JujuFactory, series: str) -> jubilant.Juju:
     """
     if series not in S3_BACKUP_TARGETS:
         pytest.skip(f"{series} has no S3 backup targets")
-    return juju_factory.get_juju(f"{series}-s3")
+    return juju_factory.get_juju(f"{series}-s3", cloud=machine_cloud)
 
 
 @pytest.fixture(scope="module")
-def k8s_host_juju(juju_factory: JujuFactory) -> jubilant.Juju:
+def k8s_host_juju(juju_factory: JujuFactory, machine_cloud: str) -> jubilant.Juju:
     """Model for the k8s charm that provides the k8s cloud ``juju_k8s`` runs on."""
-    return juju_factory.get_juju("k8s-host")
+    return juju_factory.get_juju("k8s-host", cloud=machine_cloud)
 
 
 @pytest.fixture(scope="module")
