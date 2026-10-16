@@ -36,5 +36,5 @@ export CHARM_PATH_FOCAL=$PWD/$(ls | grep '.*20.04.*\.charm$')
 tox -e func
 ```
 
-To test only one release, pass `-- -k noble`. To keep the models afterwards for debugging,
-pass `-- --no-juju-teardown`.
+To test only one release, pass `-- -k noble`. Testing only focal skips the k8s cloud. To keep
+the models afterwards for debugging, pass `-- --no-juju-teardown`.
