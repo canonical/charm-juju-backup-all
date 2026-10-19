@@ -49,7 +49,7 @@ LEADER = f"{APP_NAME}/leader"
 # Each release's CI job has a 2 hour limit, so no single wait may take most of it.
 # A wait that times out fails the test with the status it saw, instead of CI cancelling the job
 # with no output.
-DEPLOY_TIMEOUT = 30 * 60
+DEPLOY_TIMEOUT = 45 * 60
 WAIT_TIMEOUT = 20 * 60
 # For the database clusters to form and take their S3 credentials, and for a full backup.
 LONG_WAIT_TIMEOUT = 30 * 60
@@ -142,10 +142,14 @@ K8S_S3_CLUSTER_APPS = ("mysql-k8s", "mongodb-k8s", "zookeeper-k8s")
 # PostgreSQL (pgBackRest) only supports S3 over HTTPS, but some other apps like mysql do not
 # support self-signed TLS certificates, so PostgreSQL gets its own MinIO with TLS.
 TLS_S3_APPS = ("postgresql", "postgresql-k8s")
-# Two units per S3 backup target, so that each has a replica: juju-backup-all backs mysql up on
-# a non-primary unit, and tries postgresql's replicas before its primary. Three units per target
-# didn't fit on the CI runner next to the k8s cloud.
+# Two units per S3 backup target, so that each has a replica: juju-backup-all tries postgresql's
+# replicas before its primary. Three units per target didn't fit on the CI runner next to the k8s
+# cloud.
 NUM_UNITS = 2
+# Except mysql: its create-backup refuses unless the cluster can tolerate losing a member
+# ("OK" or "OK_PARTIAL"), and a cluster of fewer than three is "OK_NO_TOLERANCE".
+# juju-backup-all backs it up on a non-primary unit.
+APP_NUM_UNITS = {"mysql": 3, "mysql-k8s": 3}
 
 K8S_CLOUD = "juju-backup-all-charm-k8s"
 S3_INTEGRATOR_CHANNEL = "2/stable"
@@ -377,7 +381,22 @@ def wait_for_target_deploy_status(juju: jubilant.Juju):
         pending.difference_update([app for app in pending if app_reached_target(status, app)])
         return not pending
 
-    juju.wait(ready, error=any_hard_error, timeout=DEPLOY_TIMEOUT)
+    try:
+        juju.wait(ready, error=any_hard_error, timeout=DEPLOY_TIMEOUT)
+    except TimeoutError:
+        # jubilant's error holds the whole status, which CI truncates. Name the apps that never
+        # reached their target first.
+        status = juju.status()
+        units = [
+            f"{name}: {unit.juju_status.current}, {unit.workload_status.current}: "
+            f"{unit.workload_status.message!r}"
+            for app in sorted(pending)
+            for name, unit in status.get_units(app).items()
+        ]
+        pytest.fail(
+            f"These apps didn't reach their target deploy status: {sorted(pending)}\n"
+            + "\n".join(units)
+        )
 
 
 def wait_for_unit_workload_status(juju: jubilant.Juju, unit: str, workload_status: str):
@@ -694,7 +713,7 @@ def test_deploy_s3_backup_targets(
                 base=spec["base"],
                 channel=spec["channel"],
                 trust=spec["trust"],
-                num_units=NUM_UNITS,
+                num_units=APP_NUM_UNITS.get(app, NUM_UNITS),
             )
 
     for app, spec in S3_BACKUP_TARGETS[series].items():
@@ -704,7 +723,7 @@ def test_deploy_s3_backup_targets(
             app,
             base=spec["base"],
             channel=spec["channel"],
-            num_units=NUM_UNITS,
+            num_units=APP_NUM_UNITS.get(app, NUM_UNITS),
         )
 
     if deploy_k8s_targets:
