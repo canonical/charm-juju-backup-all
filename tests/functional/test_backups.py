@@ -2,21 +2,31 @@
 # See LICENSE file for licensing details.
 """Functional tests for the juju-backup-all charm.
 
-For each Ubuntu release in BUNDLES, in a model of its own:
+The tests run once for each deployment in DEPLOYMENTS, such as "noble-bundle" or
+"noble-k8s-bundle". Each one has juju-backup-all, and the charms it backs up:
 
-1. test_deploy: deploy the bundle ported from the old zaza suite (tests.yaml, bundles/ and
-   configure.py) and wait for zaza's target_deploy_status.
-2. test_deploy_s3_backup_targets: for the releases in S3_BACKUP_TARGETS, deploy the charms that
-   juju-backup-all backs up to S3, ported from juju-backup-all's own functional suite. The
-   machine charms go in a second model for the release, and the k8s charms go in a model on a
-   k8s cloud deployed for the release.
+- "<release>-bundle", for each release in BUNDLES, has the machine charms: the bundle ported
+  from the old zaza suite (tests.yaml, bundles/ and configure.py), and for a release in
+  S3_BACKUP_TARGETS, the machine charms that juju-backup-all backs up to S3.
+- "<release>-k8s-bundle", for each release in S3_BACKUP_TARGETS, has the k8s charms in
+  K8S_S3_BACKUP_TARGETS, which juju-backup-all backs up to S3.
+
+The S3 backup targets are ported from juju-backup-all's own functional suite. They back up to
+MinIO, in a model on a k8s cloud deployed for the deployment. The machine S3 targets go in a
+model of their own, and the k8s ones in MinIO's model.
+
+For each deployment:
+
+1. test_deploy: deploy juju-backup-all, and for a "-bundle" deployment the bundle, and wait for
+   zaza's target_deploy_status.
+2. test_deploy_s3_backup_targets: deploy the deployment's S3 backup targets, if it has any.
 3. test_configure: give the charm the credentials of the controller the tests run on.
 4. test_01_install and test_02_do_backup_action: the checks themselves.
 
-CI runs each release in a job of its own, with `tox -e func -- -k <release>`. When one run
-covers several releases, they share one controller, so each release's models are destroyed
-before the next release starts. With every release's models up at once, the controller ran out
-of resources and died.
+CI runs each deployment in a job of its own, on a runner and controller of its own, with
+`tox -e func -- -k <deployment>`. A deployment's charms didn't all fit on one runner next to
+another's. When one run covers several deployments, they share one controller, so each
+deployment's models are destroyed before the next one starts.
 
 The charm under test comes from CHARM_PATH_<RELEASE>, for example CHARM_PATH_NOBLE. CI already
 sets these variables for the zaza overlays.
@@ -30,7 +40,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Dict, Set, Tuple
+from typing import Callable, Dict, Optional, Set, Tuple
 
 import jubilant
 import pytest
@@ -50,7 +60,7 @@ LEADER = f"{APP_NAME}/leader"
 # A wait that times out fails the test with the status it saw, instead of CI cancelling the job
 # with no output.
 DEPLOY_TIMEOUT = 45 * 60
-WAIT_TIMEOUT = 20 * 60
+WAIT_TIMEOUT = 30 * 60
 # For the database clusters to form and take their S3 credentials, and for a full backup.
 LONG_WAIT_TIMEOUT = 30 * 60
 K8S_WAIT_TIMEOUT = 20 * 60
@@ -150,6 +160,13 @@ NUM_UNITS = 2
 # ("OK" or "OK_PARTIAL"), and a cluster of fewer than three is "OK_NO_TOLERANCE".
 # juju-backup-all backs it up on a non-primary unit.
 APP_NUM_UNITS = {"mysql": 3, "mysql-k8s": 3}
+# mysql and postgresql default to the "production" profile, which sizes their memory from what
+# the unit can see: the whole CI runner for an LXD container, or the whole k8s node for a pod.
+# Several units at once ran the runner and the k8s node out of memory, so use the "testing"
+# profile, which keeps them small.
+APP_CONFIG = {
+    app: {"profile": "testing"} for app in ("mysql", "mysql-k8s", "postgresql", "postgresql-k8s")
+}
 
 K8S_CLOUD = "juju-backup-all-charm-k8s"
 S3_INTEGRATOR_CHANNEL = "2/stable"
@@ -160,10 +177,35 @@ MINIO_CREDENTIALS = {"access-key": "ahs9ao#Fua", "secret-key": "ohCa!uB6oo"}
 S3_TASK_TIMEOUT = 10 * 60  # 10 minutes
 
 
-@pytest.fixture(scope="module", params=list(BUNDLES))
-def series(request: pytest.FixtureRequest) -> str:
-    """Ubuntu release under test. pytest runs every test for one release before the next."""
+BUNDLE = "bundle"
+K8S_BUNDLE = "k8s-bundle"
+DEPLOYMENTS = [f"{series}-{BUNDLE}" for series in BUNDLES] + [
+    f"{series}-{K8S_BUNDLE}" for series in S3_BACKUP_TARGETS
+]
+# The k8s VM only runs MinIO for a "-bundle" deployment, and the k8s S3 backup targets too for a
+# "-k8s-bundle" one.
+K8S_CLOUD_CONSTRAINTS = {
+    BUNDLE: {"cores": "4", "mem": "4G", "root-disk": "30G", "virt-type": "virtual-machine"},
+    K8S_BUNDLE: {"cores": "4", "mem": "16G", "root-disk": "100G", "virt-type": "virtual-machine"},
+}
+
+
+@pytest.fixture(scope="module", params=DEPLOYMENTS)
+def deployment(request: pytest.FixtureRequest) -> str:
+    """Deployment under test. pytest runs every test for one deployment before the next."""
     return request.param
+
+
+@pytest.fixture(scope="module")
+def series(deployment: str) -> str:
+    """Return the Ubuntu release that juju-backup-all runs on, for example "noble"."""
+    return deployment.partition("-")[0]
+
+
+@pytest.fixture(scope="module")
+def suite(deployment: str) -> str:
+    """Return what juju-backup-all backs up in this deployment: BUNDLE or K8S_BUNDLE."""
+    return deployment.partition("-")[2]
 
 
 @pytest.fixture(scope="module")
@@ -182,36 +224,37 @@ def machine_cloud(request: pytest.FixtureRequest) -> str:
 
 @pytest.fixture(scope="module")
 def juju(
-    juju_factory: JujuFactory, series: str, machine_cloud: str, request: pytest.FixtureRequest
+    juju_factory: JujuFactory, deployment: str, machine_cloud: str, request: pytest.FixtureRequest
 ):
-    """Model for the current release, replacing pytest-jubilant's single-model ``juju``."""
-    juju = juju_factory.get_juju(series, cloud=machine_cloud)
+    """Model for juju-backup-all, and for a bundle deployment the bundle.
+
+    It replaces pytest-jubilant's single-model ``juju``.
+    """
+    juju = juju_factory.get_juju(deployment, cloud=machine_cloud)
     yield juju
     destroy_model(juju_factory, juju, request)
 
 
 @pytest.fixture(scope="module")
 def juju_s3(
-    juju_factory: JujuFactory, series: str, machine_cloud: str, request: pytest.FixtureRequest
+    juju_factory: JujuFactory, deployment: str, machine_cloud: str, request: pytest.FixtureRequest
 ):
-    """Model for the current release's machine charms in S3_BACKUP_TARGETS.
+    """Model for a "-bundle" deployment's machine charms in S3_BACKUP_TARGETS.
 
-    Unlike the bundle's model, it keeps Juju's default model config. The clusters' hooks can
-    fail while the clusters form, and they rely on Juju retrying them.
+    Unlike juju-backup-all's model, it keeps Juju's default model config. The clusters' hooks
+    can fail while the clusters form, and they rely on Juju retrying them.
     """
-    if series not in S3_BACKUP_TARGETS:
-        pytest.skip(f"{series} has no S3 backup targets")
-    juju = juju_factory.get_juju(f"{series}-s3", cloud=machine_cloud)
+    juju = juju_factory.get_juju(f"{deployment}-s3", cloud=machine_cloud)
     yield juju
     destroy_model(juju_factory, juju, request)
 
 
 @pytest.fixture(scope="module")
 def k8s_host_juju(
-    juju_factory: JujuFactory, series: str, machine_cloud: str, request: pytest.FixtureRequest
+    juju_factory: JujuFactory, deployment: str, machine_cloud: str, request: pytest.FixtureRequest
 ):
     """Model for the k8s charm that provides the k8s cloud ``juju_k8s`` runs on."""
-    juju = juju_factory.get_juju(f"{series}-k8s-host", cloud=machine_cloud)
+    juju = juju_factory.get_juju(f"{deployment}-k8s-host", cloud=machine_cloud)
     yield juju
     destroy_model(juju_factory, juju, request)
 
@@ -219,7 +262,7 @@ def k8s_host_juju(
 @pytest.fixture(scope="module")
 def juju_k8s(
     juju_factory: JujuFactory,
-    series: str,
+    deployment: str,
     k8s_host_juju: jubilant.Juju,
     request: pytest.FixtureRequest,
 ):
@@ -228,20 +271,25 @@ def juju_k8s(
     Only request it once the k8s cloud is registered. On teardown, destroy the model and then
     remove the cloud, before ``k8s_host_juju`` destroys the k8s charm behind it.
     """
-    juju = juju_factory.get_juju(f"{series}-k8s", cloud=K8S_CLOUD)
+    juju = juju_factory.get_juju(f"{deployment}-k8s", cloud=K8S_CLOUD)
     yield juju
 
     if request.config.getoption("--no-juju-teardown"):
         return
     # The cloud can't be removed while a model is still on it.
     destroy_model(juju_factory, juju, request)
-    jubilant.Juju().cli(
-        "remove-k8s",
-        K8S_CLOUD,
-        "--controller",
-        controller_name(request),
-        include_model=False,
-    )
+    try:
+        jubilant.Juju().cli(
+            "remove-k8s",
+            K8S_CLOUD,
+            "--controller",
+            controller_name(request),
+            include_model=False,
+        )
+    except jubilant.CLIError as e:
+        # The model can still be on its way out if destroying it timed out. CI throws the
+        # controller away anyway, so don't turn the cleanup into a test error.
+        logging.warning(f"Could not remove the {K8S_CLOUD} cloud: {e}")
 
 
 def charm_path(series: str) -> Path:
@@ -303,6 +351,39 @@ def any_provisioning_error(status: jubilant.Status) -> bool:
     )
 
 
+def unready_units(status: jubilant.Status) -> str:
+    """Return a line for each unit that isn't active and idle, with its status and message."""
+    lines = [
+        f"{name}: {unit.juju_status.current}, {unit.workload_status.current}: "
+        f"{unit.workload_status.message!r}"
+        for app in sorted(status.apps)
+        for name, unit in status.get_units(app).items()
+        if not (unit.workload_status.current == "active" and unit.juju_status.current == "idle")
+    ]
+    return "\n".join(lines) or "(every unit is active and idle)"
+
+
+def wait(
+    juju: jubilant.Juju,
+    ready: Callable[[jubilant.Status], bool],
+    *,
+    error: Optional[Callable[[jubilant.Status], bool]] = None,
+    timeout: float,
+):
+    """Run ``juju.wait``, and if it fails, fail the test with the units that aren't ready.
+
+    jubilant's errors hold the whole status of the model, which CI truncates.
+    """
+    try:
+        juju.wait(ready, error=error, timeout=timeout)
+    except (TimeoutError, jubilant.WaitError) as e:
+        reason = f"timed out after {timeout}s" if isinstance(e, TimeoutError) else "hit an error"
+        pytest.fail(
+            f"Waiting on model {juju.model} {reason}. "
+            f"Units that aren't active and idle:\n{unready_units(juju.status())}"
+        )
+
+
 def any_hard_error(status: jubilant.Status) -> bool:
     """Port of zaza's check_model_for_hard_errors."""
     return any_unit_error(status) or any_provisioning_error(status)
@@ -332,7 +413,8 @@ def deploy_machine_charm(
         juju.deploy(charm, app, base=base, num_units=num_units, **kwargs)
         return
     juju.deploy(charm, app, base=base, **kwargs)
-    juju.wait(
+    wait(
+        juju,
         lambda status: base_started(status, base),
         error=any_provisioning_error,
         timeout=WAIT_TIMEOUT,
@@ -383,9 +465,15 @@ def wait_for_target_deploy_status(juju: jubilant.Juju):
 
     try:
         juju.wait(ready, error=any_hard_error, timeout=DEPLOY_TIMEOUT)
+    except jubilant.WaitError:
+        # A unit or machine is in error. jubilant's error holds the whole status, which CI
+        # truncates.
+        pytest.fail(
+            f"A unit or machine in model {juju.model} is in error. "
+            f"Units that aren't active and idle:\n{unready_units(juju.status())}"
+        )
     except TimeoutError:
-        # jubilant's error holds the whole status, which CI truncates. Name the apps that never
-        # reached their target first.
+        # Name the apps that never reached their target instead.
         status = juju.status()
         units = [
             f"{name}: {unit.juju_status.current}, {unit.workload_status.current}: "
@@ -402,7 +490,8 @@ def wait_for_target_deploy_status(juju: jubilant.Juju):
 def wait_for_unit_workload_status(juju: jubilant.Juju, unit: str, workload_status: str):
     """Port of zaza's block_until_unit_wl_status."""
     app = unit.split("/")[0]
-    juju.wait(
+    wait(
+        juju,
         lambda status: status.apps[app].units[unit].workload_status.current == workload_status,
         timeout=WAIT_TIMEOUT,
     )
@@ -414,7 +503,8 @@ def wait_for_clusters(juju: jubilant.Juju, apps: Tuple[str, ...]):
     Their hooks can fail while the clusters form, and Juju retries them, so this doesn't fail
     fast. A persistent failure still keeps a unit out of active, so the wait times out.
     """
-    juju.wait(
+    wait(
+        juju,
         lambda status: jubilant.all_active(status, *apps)
         and jubilant.all_agents_idle(status, *apps),
         timeout=LONG_WAIT_TIMEOUT,
@@ -551,24 +641,21 @@ def expose_via_nodeport(
     )
 
 
-def deploy_k8s_cloud(k8s_host_juju: jubilant.Juju, request: pytest.FixtureRequest):
+def deploy_k8s_cloud(k8s_host_juju: jubilant.Juju, suite: str, request: pytest.FixtureRequest):
     """Deploy and configure the k8s charm, and register it as the K8S_CLOUD Juju cloud."""
     k8s_host_juju.deploy(
         "k8s",
         channel="1.32/stable",
         base="ubuntu@24.04",
-        constraints={
-            "cores": "4",
-            "mem": "16G",
-            "root-disk": "100G",
-            "virt-type": "virtual-machine",
-        },
+        constraints=K8S_CLOUD_CONSTRAINTS[suite],
         config={
             "load-balancer-enabled": True,
             "local-storage-enabled": True,
         },
     )
-    k8s_host_juju.wait(lambda status: jubilant.all_active(status, "k8s"), timeout=K8S_WAIT_TIMEOUT)
+    wait(
+        k8s_host_juju, lambda status: jubilant.all_active(status, "k8s"), timeout=K8S_WAIT_TIMEOUT
+    )
 
     k8s_unit_ip = k8s_host_juju.status().apps["k8s"].units["k8s/0"].public_address
     k8s_host_juju.config("k8s", {"load-balancer-cidrs": f"{k8s_unit_ip}/32"})
@@ -627,7 +714,8 @@ def relate_to_s3(juju: jubilant.Juju, secret, app: str, s3_config: Dict[str, str
     juju.grant_secret("s3-credentials", integrator)
     juju.config(integrator, {"credentials": secret})
     if app in TLS_S3_APPS:
-        juju.wait(
+        wait(
+            juju,
             lambda status: jubilant.all_active(status, integrator),
             error=lambda status: jubilant.any_error(status, integrator),
             timeout=WAIT_TIMEOUT,
@@ -636,34 +724,50 @@ def relate_to_s3(juju: jubilant.Juju, secret, app: str, s3_config: Dict[str, str
 
 
 def expected_app_backups(
-    juju: jubilant.Juju, series: str, request: pytest.FixtureRequest
+    juju: jubilant.Juju, series: str, suite: str, request: pytest.FixtureRequest
 ) -> Dict[str, Set[str]]:
-    """Return the apps that do-backup must back up for this release, by model name."""
+    """Return the apps that do-backup must back up for this deployment, by model name.
+
+    MinIO is in the k8s model too, but it is not a backup target.
+    """
+    if suite == K8S_BUNDLE:
+        juju_k8s = request.getfixturevalue("juju_k8s")
+        return {short_model_name(juju_k8s): set(K8S_S3_BACKUP_TARGETS)}
+
     # easyrsa is in the bundle too, but it is not a backup target.
     bundle_apps = {"mysql", "etcd"}
     if "postgresql-channel" in BUNDLES[series]:
         bundle_apps.add("postgresql")
     expected = {short_model_name(juju): bundle_apps}
-
     if series in S3_BACKUP_TARGETS:
         juju_s3 = request.getfixturevalue("juju_s3")
-        juju_k8s = request.getfixturevalue("juju_k8s")
         expected[short_model_name(juju_s3)] = set(S3_BACKUP_TARGETS[series])
-        expected[short_model_name(juju_k8s)] = set(K8S_S3_BACKUP_TARGETS)
     return expected
 
 
 @pytest.mark.juju_setup
-def test_deploy(juju: jubilant.Juju, series: str):
-    """Deploy the bundle for this release and wait for the target deploy status."""
+def test_deploy(juju: jubilant.Juju, series: str, suite: str):
+    """Deploy juju-backup-all, and the bundle for a "-bundle" deployment, and wait for them."""
     bundle = BUNDLES[series]
     base = bundle["base"]
 
     juju.model_config(MODEL_CONFIG)
+    deploy_machine_charm(juju, charm_path(series), APP_NAME, base=base)
+
+    if suite == BUNDLE:
+        deploy_bundle(juju, series)
+
+    # juju-backup-all is expected to be blocked here, because it has no credentials yet.
+    wait_for_target_deploy_status(juju)
+
+
+def deploy_bundle(juju: jubilant.Juju, series: str):
+    """Deploy the bundle for ``series`` next to juju-backup-all."""
+    bundle = BUNDLES[series]
+    base = bundle["base"]
 
     # mysql and etcd are the backup targets, and so is postgresql on focal. easyrsa is only
     # there to issue etcd's TLS certificates.
-    deploy_machine_charm(juju, charm_path(series), APP_NAME, base=base)
     if "postgresql-channel" in bundle:
         deploy_machine_charm(
             juju, "postgresql", "postgresql", base=base, channel=bundle["postgresql-channel"]
@@ -680,43 +784,37 @@ def test_deploy(juju: jubilant.Juju, series: str):
     deploy_machine_charm(juju, "easyrsa", "easyrsa", base=base)
     juju.integrate("etcd:certificates", "easyrsa:client")
 
-    # juju-backup-all is expected to be blocked here, because it has no credentials yet.
-    wait_for_target_deploy_status(juju)
-
 
 @pytest.mark.juju_setup
-def test_deploy_s3_backup_targets(
-    juju_s3: jubilant.Juju,
-    k8s_host_juju: jubilant.Juju,
-    series: str,
-    request: pytest.FixtureRequest,
-):
-    """Deploy this release's S3 backup targets, and the k8s cloud and k8s targets.
+def test_deploy_s3_backup_targets(series: str, suite: str, request: pytest.FixtureRequest):
+    """Deploy this deployment's S3 backup targets, and the k8s cloud and MinIO they back up to.
 
-    Anything already deployed, when rerunning against existing models, is left as it is.
+    A "-bundle" deployment has the machine charms in S3_BACKUP_TARGETS, and a "-k8s-bundle" one
+    the k8s charms in K8S_S3_BACKUP_TARGETS. Anything already deployed in the k8s model, when
+    rerunning against existing models, is left as it is.
 
     Ported from test_deploy_k8s_cloud and test_build_and_deploy in juju-backup-all's own
     functional suite. Every target gets an s3-integrator pointing at MinIO.
     """
+    machine_targets = S3_BACKUP_TARGETS.get(series, {}) if suite == BUNDLE else {}
+    k8s_targets = K8S_S3_BACKUP_TARGETS if suite == K8S_BUNDLE else {}
+    if not (machine_targets or k8s_targets):
+        pytest.skip(f"{series}-{suite} has no S3 backup targets")
+
+    # Only request the models this deployment needs, so that the others aren't created.
+    k8s_host_juju = request.getfixturevalue("k8s_host_juju")
     if "k8s" not in k8s_host_juju.status().apps:
-        deploy_k8s_cloud(k8s_host_juju, request)
+        deploy_k8s_cloud(k8s_host_juju, suite, request)
     juju_k8s = request.getfixturevalue("juju_k8s")
-    deploy_k8s_targets = not juju_k8s.status().apps
+    juju_s3 = request.getfixturevalue("juju_s3") if machine_targets else None
+    new_k8s_model = not juju_k8s.status().apps
     k8s_node_ip = k8s_host_juju.status().apps["k8s"].units["k8s/0"].public_address
 
-    if deploy_k8s_targets:
+    if new_k8s_model:
         deploy_minio(juju_k8s, k8s_node_ip)
-        for app, spec in K8S_S3_BACKUP_TARGETS.items():
-            juju_k8s.deploy(
-                app,
-                app,
-                base=spec["base"],
-                channel=spec["channel"],
-                trust=spec["trust"],
-                num_units=APP_NUM_UNITS.get(app, NUM_UNITS),
-            )
 
-    for app, spec in S3_BACKUP_TARGETS[series].items():
+    # The machine targets run in LXD, not on the k8s VM, so they deploy while MinIO installs.
+    for app, spec in machine_targets.items():
         deploy_machine_charm(
             juju_s3,
             app,
@@ -724,18 +822,33 @@ def test_deploy_s3_backup_targets(
             base=spec["base"],
             channel=spec["channel"],
             num_units=APP_NUM_UNITS.get(app, NUM_UNITS),
+            config=APP_CONFIG.get(app),
         )
 
-    if deploy_k8s_targets:
+    if new_k8s_model:
         # MinIO's config hook resets its Service to ClusterIP, so let minio-tls settle before
-        # exposing it.
-        juju_k8s.wait(
+        # exposing it. Deploy the k8s targets only then: with all of them starting at once on
+        # the k8s VM, MinIO's install hook didn't finish within WAIT_TIMEOUT.
+        wait(
+            juju_k8s,
             lambda status: jubilant.all_active(status, "minio", "minio-tls")
             and jubilant.all_agents_idle(status, "minio-tls"),
             timeout=WAIT_TIMEOUT,
         )
-        wait_for_clusters(juju_k8s, K8S_S3_CLUSTER_APPS)
-    wait_for_clusters(juju_s3, S3_CLUSTER_APPS)
+        for app, spec in k8s_targets.items():
+            juju_k8s.deploy(
+                app,
+                app,
+                base=spec["base"],
+                channel=spec["channel"],
+                trust=spec["trust"],
+                num_units=APP_NUM_UNITS.get(app, NUM_UNITS),
+                config=APP_CONFIG.get(app),
+            )
+        if k8s_targets:
+            wait_for_clusters(juju_k8s, K8S_S3_CLUSTER_APPS)
+    if juju_s3 is not None:
+        wait_for_clusters(juju_s3, S3_CLUSTER_APPS)
 
     # Exposing a Service again is a no-op, so a rerun gets the same endpoints.
     minio_ip = expose_via_loadbalancer(k8s_host_juju, juju_k8s, "minio")
@@ -747,9 +860,9 @@ def test_deploy_s3_backup_targets(
         "tls-ca-chain": str(juju_k8s.config("minio-tls")["ssl-cert"]),
     }
 
-    targets = [(juju_s3, app, True) for app in S3_BACKUP_TARGETS[series]]
-    if deploy_k8s_targets:
-        targets += [(juju_k8s, app, False) for app in K8S_S3_BACKUP_TARGETS]
+    targets = [(juju_s3, app, True) for app in machine_targets]
+    if new_k8s_model:
+        targets += [(juju_k8s, app, False) for app in k8s_targets]
     secrets = {}
     for target_juju, app, machine in targets:
         if target_juju.model not in secrets:
@@ -759,13 +872,15 @@ def test_deploy_s3_backup_targets(
         config = {**tls_s3_config, "path": app} if app in TLS_S3_APPS else s3_config
         relate_to_s3(target_juju, secrets[target_juju.model], app, config, machine)
 
-    juju_s3.wait(jubilant.all_active, error=jubilant.any_error, timeout=LONG_WAIT_TIMEOUT)
-    if deploy_k8s_targets:
+    if juju_s3 is not None:
+        wait(juju_s3, jubilant.all_active, error=jubilant.any_error, timeout=LONG_WAIT_TIMEOUT)
+    if k8s_targets:
         # mongodb-k8s's s3-credentials-relation-changed hook can fail even on a settled
         # cluster, and Juju retries it, so don't fail fast on it. A persistent failure still
         # keeps the unit out of active, so the wait times out instead of passing.
         fail_fast_apps = [app for app in juju_k8s.status().apps if app != "mongodb-k8s"]
-        juju_k8s.wait(
+        wait(
+            juju_k8s,
             lambda status: jubilant.all_active(status) and jubilant.all_agents_idle(status),
             error=lambda status: jubilant.any_error(status, *fail_fast_apps),
             timeout=LONG_WAIT_TIMEOUT,
@@ -773,7 +888,7 @@ def test_deploy_s3_backup_targets(
 
 
 @pytest.mark.juju_setup
-def test_configure(juju: jubilant.Juju, series: str):
+def test_configure(juju: jubilant.Juju, series: str, suite: str):
     """Configure juju-backup-all with the credentials of the controller the tests run on.
 
     juju-backup-all stays blocked until it has credentials for a controller. Pass it the test
@@ -793,13 +908,13 @@ def test_configure(juju: jubilant.Juju, series: str):
         "controllers": controllers_file_contents,
         "controller-names": controller_name,
     }
-    if series in S3_BACKUP_TARGETS:
+    if suite == K8S_BUNDLE or series in S3_BACKUP_TARGETS:
         config["timeout"] = S3_TASK_TIMEOUT
     juju.config(APP_NAME, config)
 
     # With valid credentials the charm should go from "blocked" to "active".
     wait_for_unit_workload_status(juju, UNIT_NAME, "active")
-    juju.wait(jubilant.all_agents_idle, error=any_unit_error, timeout=WAIT_TIMEOUT)
+    wait(juju, jubilant.all_agents_idle, error=any_unit_error, timeout=WAIT_TIMEOUT)
 
 
 def test_01_install(juju: jubilant.Juju):
@@ -832,11 +947,13 @@ def test_01_install(juju: jubilant.Juju):
         assert_file_stat(juju, path, "regular file")
 
 
-def test_02_do_backup_action(juju: jubilant.Juju, series: str, request: pytest.FixtureRequest):
+def test_02_do_backup_action(
+    juju: jubilant.Juju, series: str, suite: str, request: pytest.FixtureRequest
+):
     """Test: do-backup action performed successfully."""
-    # The charm backs up every model on the controller, so omit the ones that belong to the
-    # other releases (and the controller and k8s-host models, which have nothing to back up).
-    expected = expected_app_backups(juju, series, request)
+    # The charm backs up every model on the controller, so omit the ones that belong to other
+    # deployments (and the controller and k8s-host models, which have nothing to back up).
+    expected = expected_app_backups(juju, series, suite, request)
     models = json.loads(juju.cli("models", "--format", "json", include_model=False))["models"]
     omit_models = [m["short-name"] for m in models if m["short-name"] not in expected]
 
