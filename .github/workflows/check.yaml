@@ -145,7 +145,7 @@ jobs:
       fail-fast: false
       matrix:
         runs-on: [[self-hosted, linux, x64, large, jammy]]
-        test-command: ['tox -e func']
+        test-command: ['tox -e func -- -k noble', 'tox -e func -- -k jammy', 'tox -e func -- -k focal']
         juju-channel: ["3.6/stable"]
     steps:
       - uses: actions/checkout@v6
