@@ -120,6 +120,10 @@ TARGET_DEPLOY_STATUS = {
 }
 APPROVED_STATUSES = ["active"]
 APPROVED_MESSAGE_PREFIXES = ["ready", "Ready", "Unit is ready"]
+# A mysql-innodb-cluster unit can stay blocked on "Cluster is inaccessible from this instance"
+# while the cluster's other members report all three ONLINE. juju-backup-all only needs one
+# unit to run mysqldump on, so a cluster that a unit reports as tolerating a failure is enough.
+INNODB_CLUSTER_ONLINE = re.compile(r"Cluster is ONLINE and can tolerate up to (ONE|\d+) failures?")
 
 # The machine charms that juju-backup-all backs up through their S3 create-backup action, for
 # each release that tests them. Each app uses the release's base where its channel has one;
@@ -437,6 +441,12 @@ def app_reached_target(status: jubilant.Status, app: str) -> bool:
     units = status.apps[app].units
     if not units:
         return False
+    if status.apps[app].charm_name == "mysql-innodb-cluster":
+        return all(unit.juju_status.current == "idle" for unit in units.values()) and any(
+            unit.workload_status.current == "active"
+            and INNODB_CLUSTER_ONLINE.search(unit.workload_status.message)
+            for unit in units.values()
+        )
     for unit in units.values():
         message = unit.workload_status.message
         if regex is not None:
