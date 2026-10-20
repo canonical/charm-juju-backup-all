@@ -15,6 +15,23 @@ The S3 backup targets are ported from juju-backup-all's own functional suite. Th
 MinIO, in a model on a k8s cloud deployed for the deployment. The machine S3 targets go in a
 model of their own, and the k8s ones in MinIO's model.
 
+What each deployment deploys, by model (helpers.py has each app's charm, channel, base and
+units):
+
+- "<release>-bundle":
+  - "<deployment>": juju-backup-all, and BUNDLES[release]: mysql (mysql-innodb-cluster), etcd,
+    easyrsa, and on focal postgresql.
+  - "<deployment>-s3", noble and jammy only: S3_BACKUP_TARGETS[release]: postgresql, mysql,
+    mongodb and zookeeper, each with an s3-integrator.
+  - "<deployment>-k8s-host", noble and jammy only: the k8s charm, which provides the k8s cloud.
+  - "<deployment>-k8s", noble and jammy only, on the k8s cloud: minio, and minio-tls for
+    postgresql.
+- "<release>-k8s-bundle":
+  - "<deployment>": juju-backup-all only.
+  - "<deployment>-k8s-host": the k8s charm, which provides the k8s cloud.
+  - "<deployment>-k8s", on the k8s cloud: minio, minio-tls, and K8S_S3_BACKUP_TARGETS:
+    mysql-k8s, postgresql-k8s, mongodb-k8s and zookeeper-k8s, each with an s3-integrator.
+
 For each deployment:
 
 1. test_deploy: deploy juju-backup-all, and for a "-bundle" deployment the bundle, and wait for
@@ -31,8 +48,7 @@ deployment's models are destroyed before the next one starts.
 The charm under test comes from CHARM_PATH_<RELEASE>, for example CHARM_PATH_NOBLE. CI already
 sets these variables for the zaza overlays.
 
-The fixtures for the deployment and its models are in conftest.py, and the deployments in
-helpers.py.
+The fixtures for the deployment and its models are in conftest.py.
 """
 
 import base64
@@ -52,7 +68,17 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-from helpers import BUNDLE, BUNDLES, K8S_BUNDLE, K8S_CLOUD, S3_BACKUP_TARGETS, controller_name
+from helpers import (
+    BUNDLE,
+    BUNDLE_NON_TARGETS,
+    BUNDLE_RELATIONS,
+    BUNDLES,
+    K8S_BUNDLE,
+    K8S_CLOUD,
+    K8S_S3_BACKUP_TARGETS,
+    S3_BACKUP_TARGETS,
+    controller_name,
+)
 
 from config import BACKUP_USERNAME, Paths
 
@@ -108,13 +134,6 @@ APPROVED_MESSAGE_PREFIXES = ["ready", "Ready", "Unit is ready"]
 # unit to run mysqldump on, so a cluster that a unit reports as tolerating a failure is enough.
 INNODB_CLUSTER_ONLINE = re.compile(r"Cluster is ONLINE and can tolerate up to (ONE|\d+) failures?")
 
-# The k8s charms that back up to S3. Every release in S3_BACKUP_TARGETS backs up the same ones.
-K8S_S3_BACKUP_TARGETS = {
-    "mysql-k8s": {"channel": "8.0/stable", "base": "ubuntu@22.04", "trust": True},
-    "postgresql-k8s": {"channel": "16/stable", "base": "ubuntu@24.04", "trust": True},
-    "mongodb-k8s": {"channel": "6/stable", "base": "ubuntu@22.04", "trust": True},
-    "zookeeper-k8s": {"channel": "3/stable", "base": "ubuntu@22.04", "trust": False},
-}
 # The apps whose clusters must finish forming before they are related to S3. Relating them
 # mid-bootstrap fails s3-credentials-relation-changed on non-leader units.
 S3_CLUSTER_APPS = ("mysql", "mongodb", "zookeeper")
@@ -122,21 +141,6 @@ K8S_S3_CLUSTER_APPS = ("mysql-k8s", "mongodb-k8s", "zookeeper-k8s")
 # PostgreSQL (pgBackRest) only supports S3 over HTTPS, but some other apps like mysql do not
 # support self-signed TLS certificates, so PostgreSQL gets its own MinIO with TLS.
 TLS_S3_APPS = ("postgresql", "postgresql-k8s")
-# Two units per S3 backup target, so that each has a replica: juju-backup-all tries postgresql's
-# replicas before its primary. Three units per target didn't fit on the CI runner next to the k8s
-# cloud.
-NUM_UNITS = 2
-# Except mysql: its create-backup refuses unless the cluster can tolerate losing a member
-# ("OK" or "OK_PARTIAL"), and a cluster of fewer than three is "OK_NO_TOLERANCE".
-# juju-backup-all backs it up on a non-primary unit.
-APP_NUM_UNITS = {"mysql": 3, "mysql-k8s": 3}
-# mysql and postgresql default to the "production" profile, which sizes their memory from what
-# the unit can see: the whole CI runner for an LXD container, or the whole k8s node for a pod.
-# Several units at once ran the runner and the k8s node out of memory, so use the "testing"
-# profile, which keeps them small.
-APP_CONFIG = {
-    app: {"profile": "testing"} for app in ("mysql", "mysql-k8s", "postgresql", "postgresql-k8s")
-}
 
 S3_INTEGRATOR_CHANNEL = "2/stable"
 S3_INTEGRATOR_BASE = "ubuntu@24.04"
@@ -605,10 +609,7 @@ def expected_app_backups(
         juju_k8s = request.getfixturevalue("juju_k8s")
         return {short_model_name(juju_k8s): set(K8S_S3_BACKUP_TARGETS)}
 
-    # easyrsa is in the bundle too, but it is not a backup target.
-    bundle_apps = {"mysql", "etcd"}
-    if "postgresql-channel" in BUNDLES[series]:
-        bundle_apps.add("postgresql")
+    bundle_apps = set(BUNDLES[series]["apps"]) - BUNDLE_NON_TARGETS
     expected = {short_model_name(juju): bundle_apps}
     if series in S3_BACKUP_TARGETS:
         juju_s3 = request.getfixturevalue("juju_s3")
@@ -633,27 +634,13 @@ def test_deploy(juju: jubilant.Juju, series: str, suite: str):
 
 
 def deploy_bundle(juju: jubilant.Juju, series: str):
-    """Deploy the bundle for ``series`` next to juju-backup-all."""
+    """Deploy the bundle for ``series`` next to juju-backup-all, as listed in BUNDLES."""
     bundle = BUNDLES[series]
-    base = bundle["base"]
-
-    # mysql and etcd are the backup targets, and so is postgresql on focal. easyrsa is only
-    # there to issue etcd's TLS certificates.
-    if "postgresql-channel" in bundle:
-        deploy_machine_charm(
-            juju, "postgresql", "postgresql", base=base, channel=bundle["postgresql-channel"]
-        )
-    deploy_machine_charm(
-        juju,
-        "mysql-innodb-cluster",
-        "mysql",
-        base=base,
-        channel=bundle["mysql-innodb-cluster-channel"],
-        num_units=3,
-    )
-    deploy_machine_charm(juju, "etcd", "etcd", base=base)
-    deploy_machine_charm(juju, "easyrsa", "easyrsa", base=base)
-    juju.integrate("etcd:certificates", "easyrsa:client")
+    for app, spec in bundle["apps"].items():
+        args = {key: value for key, value in spec.items() if key != "charm"}
+        deploy_machine_charm(juju, spec["charm"], app, base=bundle["base"], **args)
+    for endpoint1, endpoint2 in BUNDLE_RELATIONS:
+        juju.integrate(endpoint1, endpoint2)
 
 
 @pytest.mark.juju_setup
@@ -692,8 +679,8 @@ def test_deploy_s3_backup_targets(series: str, suite: str, request: pytest.Fixtu
             app,
             base=spec["base"],
             channel=spec["channel"],
-            num_units=APP_NUM_UNITS.get(app, NUM_UNITS),
-            config=APP_CONFIG.get(app),
+            num_units=spec["num_units"],
+            config=spec.get("config"),
         )
 
     if new_k8s_model:
@@ -714,8 +701,8 @@ def test_deploy_s3_backup_targets(series: str, suite: str, request: pytest.Fixtu
                 base=spec["base"],
                 channel=spec["channel"],
                 trust=spec["trust"],
-                num_units=APP_NUM_UNITS.get(app, NUM_UNITS),
-                config=APP_CONFIG.get(app),
+                num_units=spec["num_units"],
+                config=spec.get("config"),
             )
         if k8s_targets:
             wait_for_clusters(juju_k8s, K8S_S3_CLUSTER_APPS)
