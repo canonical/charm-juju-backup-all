@@ -30,6 +30,9 @@ deployment's models are destroyed before the next one starts.
 
 The charm under test comes from CHARM_PATH_<RELEASE>, for example CHARM_PATH_NOBLE. CI already
 sets these variables for the zaza overlays.
+
+The fixtures for the deployment and its models are in conftest.py, and the deployments in
+helpers.py.
 """
 
 import base64
@@ -48,7 +51,7 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
-from pytest_jubilant import JujuFactory
+from helpers import BUNDLE, BUNDLES, K8S_BUNDLE, K8S_CLOUD, S3_BACKUP_TARGETS, controller_name
 
 from config import BACKUP_USERNAME, Paths
 
@@ -64,27 +67,6 @@ WAIT_TIMEOUT = 30 * 60
 # For the database clusters to form and take their S3 credentials, and for a full backup.
 LONG_WAIT_TIMEOUT = 30 * 60
 K8S_WAIT_TIMEOUT = 20 * 60
-# For each step of destroying a model.
-DESTROY_TIMEOUT = 10 * 60
-
-# postgresql is only in focal's bundle. Its latest/stable charm has no create-backup action, so
-# juju-backup-all backs it up with pg_dumpall. The newer postgresql charms back up to S3
-# instead, so they are in S3_BACKUP_TARGETS.
-BUNDLES = {
-    "noble": {
-        "base": "ubuntu@24.04",
-        "mysql-innodb-cluster-channel": "8.0/stable",
-    },
-    "jammy": {
-        "base": "ubuntu@22.04",
-        "mysql-innodb-cluster-channel": "8.0/stable",
-    },
-    "focal": {
-        "base": "ubuntu@20.04",
-        "postgresql-channel": "latest/stable",
-        "mysql-innodb-cluster-channel": "8.0/stable",
-    },
-}
 
 # The model config zaza applies to every test model. zaza's "default-series" is left out
 # because every app here sets its own base.
@@ -125,23 +107,6 @@ APPROVED_MESSAGE_PREFIXES = ["ready", "Ready", "Unit is ready"]
 # unit to run mysqldump on, so a cluster that a unit reports as tolerating a failure is enough.
 INNODB_CLUSTER_ONLINE = re.compile(r"Cluster is ONLINE and can tolerate up to (ONE|\d+) failures?")
 
-# The machine charms that juju-backup-all backs up through their S3 create-backup action, for
-# each release that tests them. Each app uses the release's base where its channel has one;
-# most channels only publish a single base.
-S3_BACKUP_TARGETS = {
-    "noble": {
-        "postgresql": {"channel": "16/stable", "base": "ubuntu@24.04"},
-        "mysql": {"channel": "8.0/stable", "base": "ubuntu@22.04"},
-        "mongodb": {"channel": "8/stable", "base": "ubuntu@24.04"},
-        "zookeeper": {"channel": "3/stable", "base": "ubuntu@22.04"},
-    },
-    "jammy": {
-        "postgresql": {"channel": "14/stable", "base": "ubuntu@22.04"},
-        "mysql": {"channel": "8.0/stable", "base": "ubuntu@22.04"},
-        "mongodb": {"channel": "6/stable", "base": "ubuntu@22.04"},
-        "zookeeper": {"channel": "3/stable", "base": "ubuntu@22.04"},
-    },
-}
 # The k8s charms that back up to S3. Every release in S3_BACKUP_TARGETS backs up the same ones.
 K8S_S3_BACKUP_TARGETS = {
     "mysql-k8s": {"channel": "8.0/stable", "base": "ubuntu@22.04", "trust": True},
@@ -172,7 +137,6 @@ APP_CONFIG = {
     app: {"profile": "testing"} for app in ("mysql", "mysql-k8s", "postgresql", "postgresql-k8s")
 }
 
-K8S_CLOUD = "juju-backup-all-charm-k8s"
 S3_INTEGRATOR_CHANNEL = "2/stable"
 S3_INTEGRATOR_BASE = "ubuntu@24.04"
 MINIO_CHANNEL = "ckf-1.10/stable"
@@ -180,120 +144,12 @@ MINIO_CREDENTIALS = {"access-key": "ahs9ao#Fua", "secret-key": "ohCa!uB6oo"}
 
 S3_TASK_TIMEOUT = 10 * 60  # 10 minutes
 
-
-BUNDLE = "bundle"
-K8S_BUNDLE = "k8s-bundle"
-DEPLOYMENTS = [f"{series}-{BUNDLE}" for series in BUNDLES] + [
-    f"{series}-{K8S_BUNDLE}" for series in S3_BACKUP_TARGETS
-]
 # The k8s VM only runs MinIO for a "-bundle" deployment, and the k8s S3 backup targets too for a
 # "-k8s-bundle" one.
 K8S_CLOUD_CONSTRAINTS = {
     BUNDLE: {"cores": "4", "mem": "4G", "root-disk": "30G", "virt-type": "virtual-machine"},
     K8S_BUNDLE: {"cores": "4", "mem": "16G", "root-disk": "100G", "virt-type": "virtual-machine"},
 }
-
-
-@pytest.fixture(scope="module", params=DEPLOYMENTS)
-def deployment(request: pytest.FixtureRequest) -> str:
-    """Deployment under test. pytest runs every test for one deployment before the next."""
-    return request.param
-
-
-@pytest.fixture(scope="module")
-def series(deployment: str) -> str:
-    """Return the Ubuntu release that juju-backup-all runs on, for example "noble"."""
-    return deployment.partition("-")[0]
-
-
-@pytest.fixture(scope="module")
-def suite(deployment: str) -> str:
-    """Return what juju-backup-all backs up in this deployment: BUNDLE or K8S_BUNDLE."""
-    return deployment.partition("-")[2]
-
-
-@pytest.fixture(scope="module")
-def machine_cloud(request: pytest.FixtureRequest) -> str:
-    """Cloud for the machine models: --juju-cloud if given, else the controller's own cloud.
-
-    Once the k8s cloud is registered, the controller manages more than one cloud, and
-    `juju add-model` fails unless it is told which one to use.
-    """
-    controllers = json.loads(
-        jubilant.Juju().cli("controllers", "--format", "json", include_model=False)
-    )
-    cloud = controllers["controllers"][controller_name(request)]["cloud"]
-    return request.config.getoption("--juju-cloud") or cloud
-
-
-@pytest.fixture(scope="module")
-def juju(
-    juju_factory: JujuFactory, deployment: str, machine_cloud: str, request: pytest.FixtureRequest
-):
-    """Model for juju-backup-all, and for a bundle deployment the bundle.
-
-    It replaces pytest-jubilant's single-model ``juju``.
-    """
-    juju = juju_factory.get_juju(deployment, cloud=machine_cloud)
-    yield juju
-    destroy_model(juju_factory, juju, request)
-
-
-@pytest.fixture(scope="module")
-def juju_s3(
-    juju_factory: JujuFactory, deployment: str, machine_cloud: str, request: pytest.FixtureRequest
-):
-    """Model for a "-bundle" deployment's machine charms in S3_BACKUP_TARGETS.
-
-    Unlike juju-backup-all's model, it keeps Juju's default model config. The clusters' hooks
-    can fail while the clusters form, and they rely on Juju retrying them.
-    """
-    juju = juju_factory.get_juju(f"{deployment}-s3", cloud=machine_cloud)
-    yield juju
-    destroy_model(juju_factory, juju, request)
-
-
-@pytest.fixture(scope="module")
-def k8s_host_juju(
-    juju_factory: JujuFactory, deployment: str, machine_cloud: str, request: pytest.FixtureRequest
-):
-    """Model for the k8s charm that provides the k8s cloud ``juju_k8s`` runs on."""
-    juju = juju_factory.get_juju(f"{deployment}-k8s-host", cloud=machine_cloud)
-    yield juju
-    destroy_model(juju_factory, juju, request)
-
-
-@pytest.fixture(scope="module")
-def juju_k8s(
-    juju_factory: JujuFactory,
-    deployment: str,
-    k8s_host_juju: jubilant.Juju,
-    request: pytest.FixtureRequest,
-):
-    """Model on the k8s cloud, for MinIO and the charms in K8S_S3_BACKUP_TARGETS.
-
-    Only request it once the k8s cloud is registered. On teardown, destroy the model and then
-    remove the cloud, before ``k8s_host_juju`` destroys the k8s charm behind it.
-    """
-    juju = juju_factory.get_juju(f"{deployment}-k8s", cloud=K8S_CLOUD)
-    yield juju
-
-    if request.config.getoption("--no-juju-teardown"):
-        return
-    # The cloud can't be removed while a model is still on it.
-    destroy_model(juju_factory, juju, request)
-    try:
-        jubilant.Juju().cli(
-            "remove-k8s",
-            K8S_CLOUD,
-            "--controller",
-            controller_name(request),
-            include_model=False,
-        )
-    except jubilant.CLIError as e:
-        # The model can still be on its way out if destroying it timed out. CI throws the
-        # controller away anyway, so don't turn the cleanup into a test error.
-        logging.warning(f"Could not remove the {K8S_CLOUD} cloud: {e}")
 
 
 def charm_path(series: str) -> Path:
@@ -303,33 +159,6 @@ def charm_path(series: str) -> Path:
     if not path:
         pytest.fail(f"{env_var} must be set to the path of the charm built for {series}")
     return Path(path)
-
-
-def controller_name(request: pytest.FixtureRequest) -> str:
-    """Return --juju-controller if given, else the current controller."""
-    controllers = json.loads(
-        jubilant.Juju().cli("controllers", "--format", "json", include_model=False)
-    )
-    return request.config.getoption("--juju-controller") or controllers["current-controller"]
-
-
-def destroy_model(juju_factory: JujuFactory, juju: jubilant.Juju, request: pytest.FixtureRequest):
-    """Destroy ``juju``'s model now, instead of when juju_factory tears down with the module.
-
-    Drop it from juju_factory, so that it doesn't try to destroy it again. juju_factory only
-    logs the debug-log of the models it still has, so log this one's here if a test failed.
-    """
-    if request.config.getoption("--no-juju-teardown"):
-        return
-    model = juju.model
-    assert model is not None
-    if request.session.testsfailed:
-        try:
-            logging.error(f"juju debug-log for model {model}:\n{juju.debug_log(limit=1000)}")
-        except jubilant.CLIError as e:
-            logging.error(f"Could not get the juju debug-log for model {model}: {e}")
-    juju.destroy_model(model, destroy_storage=True, force=True, timeout=DESTROY_TIMEOUT)
-    juju_factory._models.pop(model, None)  # pyright: ignore[reportPrivateUsage]
 
 
 def short_model_name(juju: jubilant.Juju) -> str:
