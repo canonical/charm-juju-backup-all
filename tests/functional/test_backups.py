@@ -42,6 +42,7 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import Callable, Dict, Optional, Set, Tuple
 
@@ -144,6 +145,13 @@ MINIO_CREDENTIALS = {"access-key": "ahs9ao#Fua", "secret-key": "ohCa!uB6oo"}
 
 S3_TASK_TIMEOUT = 10 * 60  # 10 minutes
 
+# juju deploy errors from a flaky connection, such as Charmhub's "TLS handshake timeout".
+TRANSIENT_DEPLOY_ERRORS = re.compile(
+    r"timeout|connection reset|connection refused|unexpected EOF|50[234] ", re.IGNORECASE
+)
+DEPLOY_ATTEMPTS = 3
+DEPLOY_RETRY_DELAY = 30
+
 # The k8s VM only runs MinIO for a "-bundle" deployment, and the k8s S3 backup targets too for a
 # "-k8s-bundle" one.
 K8S_CLOUD_CONSTRAINTS = {
@@ -232,6 +240,28 @@ def base_started(status: jubilant.Status, base: str) -> bool:
     )
 
 
+def deploy(juju: jubilant.Juju, charm, app: Optional[str] = None, **kwargs):
+    """Run ``juju.deploy``, retrying when it fails to reach Charmhub.
+
+    The CI runners' connection to Charmhub sometimes times out, for example with "TLS handshake
+    timeout". A failed deploy is only retried when it didn't create the app.
+    """
+    name = app or str(charm)
+    for attempt in range(1, DEPLOY_ATTEMPTS + 1):
+        try:
+            juju.deploy(charm, app, **kwargs)
+            return
+        except jubilant.CLIError as e:
+            if (
+                attempt == DEPLOY_ATTEMPTS
+                or not TRANSIENT_DEPLOY_ERRORS.search(e.stderr)
+                or name in juju.status().apps
+            ):
+                raise
+            logging.warning(f"Deploying {name} failed, retrying in {DEPLOY_RETRY_DELAY}s: {e}")
+            time.sleep(DEPLOY_RETRY_DELAY)
+
+
 def deploy_machine_charm(
     juju: jubilant.Juju, charm, app: str, *, base: str, num_units: int = 1, **kwargs
 ):
@@ -243,9 +273,9 @@ def deploy_machine_charm(
     others reuse it.
     """
     if base_started(juju.status(), base):
-        juju.deploy(charm, app, base=base, num_units=num_units, **kwargs)
+        deploy(juju, charm, app, base=base, num_units=num_units, **kwargs)
         return
-    juju.deploy(charm, app, base=base, **kwargs)
+    deploy(juju, charm, app, base=base, **kwargs)
     wait(
         juju,
         lambda status: base_started(status, base),
@@ -482,7 +512,8 @@ def expose_via_nodeport(
 
 def deploy_k8s_cloud(k8s_host_juju: jubilant.Juju, suite: str, request: pytest.FixtureRequest):
     """Deploy and configure the k8s charm, and register it as the K8S_CLOUD Juju cloud."""
-    k8s_host_juju.deploy(
+    deploy(
+        k8s_host_juju,
         "k8s",
         channel="1.32/stable",
         base="ubuntu@24.04",
@@ -516,10 +547,11 @@ def deploy_minio(juju_k8s: jubilant.Juju, k8s_node_ip: str):
     The single LoadBalancer IP is the k8s node's own address and is taken by "minio", so
     "minio-tls" is exposed via NodePort on that same address and its certificate is for it.
     """
-    juju_k8s.deploy("minio", channel=MINIO_CHANNEL, trust=True, config=MINIO_CREDENTIALS)
+    deploy(juju_k8s, "minio", channel=MINIO_CHANNEL, trust=True, config=MINIO_CREDENTIALS)
 
     cert_pem, key_pem = generate_self_signed_cert(k8s_node_ip)
-    juju_k8s.deploy(
+    deploy(
+        juju_k8s,
         "minio",
         "minio-tls",
         channel=MINIO_CHANNEL,
@@ -549,7 +581,7 @@ def relate_to_s3(juju: jubilant.Juju, secret, app: str, s3_config: Dict[str, str
             config=config,
         )
     else:
-        juju.deploy("s3-integrator", integrator, channel=S3_INTEGRATOR_CHANNEL, config=config)
+        deploy(juju, "s3-integrator", integrator, channel=S3_INTEGRATOR_CHANNEL, config=config)
     juju.grant_secret("s3-credentials", integrator)
     juju.config(integrator, {"credentials": secret})
     if app in TLS_S3_APPS:
@@ -675,7 +707,8 @@ def test_deploy_s3_backup_targets(series: str, suite: str, request: pytest.Fixtu
             timeout=WAIT_TIMEOUT,
         )
         for app, spec in k8s_targets.items():
-            juju_k8s.deploy(
+            deploy(
+                juju_k8s,
                 app,
                 app,
                 base=spec["base"],
