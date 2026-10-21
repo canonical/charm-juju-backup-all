@@ -145,7 +145,12 @@ jobs:
       fail-fast: false
       matrix:
         runs-on: [[self-hosted, linux, x64, large, jammy]]
-        test-command: ['tox -e func']
+        test-command:
+          - 'tox -e func -- -k noble-bundle'
+          - 'tox -e func -- -k jammy-bundle'
+          - 'tox -e func -- -k focal-bundle'
+          - 'tox -e func -- -k noble-k8s-bundle'
+          - 'tox -e func -- -k jammy-k8s-bundle'
         juju-channel: ["3.6/stable"]
     steps:
       - uses: actions/checkout@v6

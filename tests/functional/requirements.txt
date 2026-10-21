@@ -1,2 +1,3 @@
-git+https://github.com/openstack-charmers/zaza.git@master#egg=zaza
-python-openstackclient
+cryptography
+jubilant; python_version >= "3.10"
+pytest-jubilant; python_version >= "3.10"
